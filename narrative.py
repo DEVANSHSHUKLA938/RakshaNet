@@ -1,3 +1,4 @@
+import re
 import os, textwrap, feedparser
 from datetime import datetime
 from urllib.parse import quote
@@ -19,9 +20,10 @@ def get_font(size, bold=False):
 def verify_claim(claim):
     q = quote(claim[:80])
     feed = feedparser.parse(f"https://news.google.com/rss/search?q={q}+when:7d&hl=en-IN&gl=IN&ceid=IN:en")
-    if feed.entries:
-        top = feed.entries[0]
-        return top.title, top.link
+    words = [w.lower() for w in re.findall(r"[a-zA-Z]{4,}", claim)]
+    for e in feed.entries[:5]:
+        if words and sum(1 for w in words if w in e.title.lower()) >= min(2, len(words)):
+            return e.title, e.link
     return "No official confirmation found in recent PIB/News feeds; verify before sharing.", "https://factcheck.pib.gov.in/"
 
 def make_card(claim, fact, out_path="output/fact_card.png"):
