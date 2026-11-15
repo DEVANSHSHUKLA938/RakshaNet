@@ -10,7 +10,9 @@ from PIL import Image, ImageDraw, ImageFont
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
-BOT_TOKEN = re.search(r'BOT_TOKEN\s*=\s*"([^"]+)"', open("bot.py").read()).group(1)
+from dotenv import load_dotenv
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 os.makedirs("temp", exist_ok=True)
 os.makedirs("output", exist_ok=True)
 

@@ -6,7 +6,9 @@ from PIL import Image
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-BOT_TOKEN = "8837360885:AAEHFwfo048qipmIJpDeLmh1LF-v-iT8C40"
+from dotenv import load_dotenv
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_FILE = "rakshanet.db"
 os.makedirs("temp", exist_ok=True)
 
