@@ -192,6 +192,26 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+
+def ai_reason(claim, heads, fb):
+    k = os.environ.get("GROQ_API_KEY", "")
+    if not k:
+        return fb
+    try:
+        import requests
+        ctx = " | ".join(heads) if heads else "No matching news headlines found."
+        p = f"Claim: {claim}\nLive News/PIB Headlines: {ctx}\nGive a 1-line verdict starting with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED] followed by a brief 1-sentence factual reason."
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {k}"},
+            json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}], "max_tokens": 120},
+            timeout=15
+        ).json()
+        txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        return txt if txt else fb
+    except Exception:
+        return fb
+
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
     if not m:
@@ -215,6 +235,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _m = next((e for e in feed.entries[:5] if _w and sum(1 for w in _w if w in e.title.lower()) >= min(2, len(_w))), None)
         fact = _m.title if _m else "No official confirmation found for this spoken claim; verify before sharing."
         purl = _m.link if _m else "https://factcheck.pib.gov.in/"
+        fact = ai_reason(speech, [e.title for e in feed.entries[:3]], fact)
         card = make_fact_card(speech[:160], fact)
         await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}")
     except Exception as e:
