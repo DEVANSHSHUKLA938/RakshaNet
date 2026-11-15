@@ -7,12 +7,28 @@ import cv2
 import feedparser
 import numpy as np
 from dotenv import load_dotenv
-try:
-    from faster_whisper import WhisperModel
-except ImportError:
-    class WhisperModel:
-        def init(self, *a, kw): pass
-        def transcribe(self, *a, kw): return [], None
+class _GroqWhisper:
+    def init(self, *a, **kw): pass
+    def transcribe(self, path, *a, **kw):
+        import requests
+        r = requests.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {os.environ.get('GROQ_API_KEY', '')}"},
+            files={"file": open(path, "rb")},
+            data={"model": "whisper-large-v3-turbo"},
+            timeout=30
+        ).json()
+        class _Seg:
+            def init(self, t): self.text = t
+        return ([_Seg(r.get("text", ""))] if r.get("text") else []), None
+
+if os.environ.get("GROQ_API_KEY"):
+    WhisperModel = _GroqWhisper
+else:
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        WhisperModel = _GroqWhisper
 from PIL import Image, ImageDraw, ImageFont
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
@@ -172,6 +188,36 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"[Error] {e}")
 
 
+
+async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
+    if not m:
+        return
+    await update.message.reply_text("[RakshaNet] Scanning forwarded media with Whisper Large-v3...")
+    os.makedirs("temp", exist_ok=True)
+    f = await context.bot.get_file(m.file_id)
+    ext = ".mp4" if (update.message.video or update.message.video_note) else ".ogg"
+    p = f"temp/tg_media{ext}"
+    await f.download_to_drive(p)
+    try:
+        segs, _ = WhisperModel("tiny").transcribe(p)
+        speech = " ".join(x.text for x in segs).strip()
+        if not speech:
+            await update.message.reply_text("No clear speech detected in this media.")
+            return
+        import feedparser, re as _re
+        from urllib.parse import quote
+        feed = feedparser.parse(f"https://news.google.com/rss/search?q={quote(speech[:80])}+when:7d&hl=en-IN&gl=IN&ceid=IN:en")
+        _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", speech)]
+        _m = next((e for e in feed.entries[:5] if _w and sum(1 for w in _w if w in e.title.lower()) >= min(2, len(_w))), None)
+        fact = _m.title if _m else "No official confirmation found for this spoken claim; verify before sharing."
+        purl = _m.link if _m else "https://factcheck.pib.gov.in/"
+        card = make_fact_card(speech[:160], fact)
+        await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}")
+    finally:
+        if os.path.exists(p):
+            os.remove(p)
+
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -189,6 +235,7 @@ app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+app.add_handler(MessageHandler(filters.VIDEO | filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE, handle_media))
 app.add_handler(CallbackQueryHandler(button_tap))
 
 import threading
