@@ -204,7 +204,7 @@ def _render_switch(action):
     if k and not os.environ.get("PORT"):
         try:
             import requests, time
-            requests.post(f"https://api.render.com/v1/services/srv-dbsifk6k1f9s739ctpl0/{action}", headers={"Authorization": f"Bearer {k}"}, timeout=10)
+            requests.post(f"https://api.render.com/v1/services/srv-dbsifk6k1f9s739ctpi0/{action}", headers={"Authorization": f"Bearer {k}"}, timeout=10)
             if action == "suspend":
                 time.sleep(15)
             print(f"[Auto-Switch] Render {action}d!")
