@@ -203,10 +203,13 @@ def deep_verify(claim):
             pass
     auth_domains = ("pib.gov.in", "gov.in", "nic.in", "rbi.org.in", "isro.gov.in", "worldbank.org", "imf.org", "who.int", "un.org", "boomlive.in", "factly.in", "vishvasnews.com", "reuters.com", "apnews.com", "thehindu.com", "indianexpress.com", "ddnews.gov.in", "ptinews.com", "britannica.com")
     all_entries = []
-    for q in queries:
-        for suffix in ["", " fact check", " site:gov.in OR site:worldbank.org OR site:imf.org OR site:rbi.org.in"]:
-            feed = feedparser.parse(f"https://news.google.com/rss/search?q={urllib.parse.quote(q + suffix)}&when:30d&hl=en-IN&gl=IN&ceid=IN:en")
-            all_entries.extend(feed.entries[:5])
+    import requests as _rq
+    for q in queries[:2]:
+        try:
+            res = _rq.get(f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&when:30d&hl=en-IN&gl=IN&ceid=IN:en", timeout=6).text
+            all_entries.extend(feedparser.parse(res).entries[:5])
+        except Exception:
+            pass
     _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", claim)]
     best = next((e for e in all_entries if any(d in getattr(e, "link", "").lower() or d in getattr(e, "title", "").lower() for d in auth_domains) and (_w and sum(1 for w in _w if w in e.title.lower()) >= 1)), None)
     if not best:
@@ -223,7 +226,10 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not txt.startswith("http"):
         await update.message.reply_text("[Narrative] Investigating authentic sources & data...")
-        heads, fb, purl = deep_verify(txt)
+        try:
+            heads, fb, purl = deep_verify(txt)
+        except Exception:
+            heads, fb, purl = [], "Verification timeout; added to 24h watchlist.", "https://factcheck.pib.gov.in/"
         fact = ai_reason(txt, heads, fb)
         conn = sqlite3.connect(DB_FILE)
         conn.execute("CREATE TABLE IF NOT EXISTS narratives (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_type TEXT, counter_fact TEXT, proof_url TEXT)")
