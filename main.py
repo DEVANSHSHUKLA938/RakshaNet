@@ -206,7 +206,7 @@ def _render_switch(action):
             import requests, time
             requests.post(f"https://api.render.com/v1/services/srv-dbsifk6k1f9s739ctpl0/{action}", headers={"Authorization": f"Bearer {k}"}, timeout=10)
             if action == "suspend":
-                time.sleep(3)
+                time.sleep(15)
             print(f"[Auto-Switch] Render {action}d!")
         except Exception as e:
             print(f"[Auto-Switch] Note: {e}")
