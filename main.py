@@ -322,6 +322,45 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if os.path.exists(p):
             os.remove(p)
 #
+async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import urllib.parse
+    m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
+    if not m:
+        return
+    await update.message.reply_text("[RakshaNet] Scanning full forwarded media with Whisper Large-v3...")
+    os.makedirs("temp", exist_ok=True)
+    f = await context.bot.get_file(m.file_id)
+    ext = ".mp4" if (update.message.video or update.message.video_note) else ".ogg"
+    p = f"temp/tg_media{ext}"
+    await f.download_to_drive(p)
+    try:
+        speech = get_speech(p)
+        if not speech:
+            await update.message.reply_text("No clear speech detected in this media.")
+            return
+        heads, fb, purl = deep_verify(speech[:220])
+        fact = ai_reason(speech[:220], heads, fb)
+        card = make_fact_card(speech[:180], fact)
+        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
+        kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
+        full_msg = f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}"
+        if len(full_msg) <= 1000:
+            await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
+        else:
+            await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact[:700]}", reply_markup=InlineKeyboardMarkup(kb))
+            await update.message.reply_text(full_msg)
+        pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
+        if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
+            try:
+                await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+            except Exception:
+                pass
+    except Exception as e:
+        await update.message.reply_text(f"[Media Error] {e}")
+    finally:
+        if os.path.exists(p):
+            os.remove(p)
+
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
