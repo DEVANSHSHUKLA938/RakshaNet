@@ -20,6 +20,7 @@ class _GroqWhisper:
         ).json()
         class _Seg:
             def init(self, t): self.text = t
+        if "error" in r: raise RuntimeError(r["error"].get("message", str(r["error"])))
         return ([_Seg(r.get("text", ""))] if r.get("text") else []), None
 
 if os.environ.get("GROQ_API_KEY"):
@@ -214,6 +215,8 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         purl = _m.link if _m else "https://factcheck.pib.gov.in/"
         card = make_fact_card(speech[:160], fact)
         await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}")
+    except Exception as e:
+        await update.message.reply_text(f"[Media Error] {e}")
     finally:
         if os.path.exists(p):
             os.remove(p)
