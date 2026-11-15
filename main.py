@@ -198,4 +198,23 @@ if os.environ.get("PORT"):
         def do_GET(self): self.send_response(200); self.end_headers(); self.wfile.write(b"RakshaNet OK")
         def log_message(self, *a): pass
     threading.Thread(target=lambda: HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever(), daemon=True).start()
-app.run_polling()
+
+def _render_switch(action):
+    k = os.environ.get("RENDER_API_KEY")
+    if k and not os.environ.get("PORT"):
+        try:
+            import requests, time
+            requests.post(f"https://api.render.com/v1/services/srv-dbsifk6k1f9s739ctpl0/{action}", headers={"Authorization": f"Bearer {k}"}, timeout=10)
+            if action == "suspend":
+                time.sleep(3)
+            print(f"[Auto-Switch] Render {action}d!")
+        except Exception as e:
+            print(f"[Auto-Switch] Note: {e}")
+
+if not os.environ.get("PORT") and os.environ.get("RENDER_API_KEY"):
+    _render_switch("suspend")
+try:
+    app.run_polling()
+finally:
+    _render_switch("resume")
+
