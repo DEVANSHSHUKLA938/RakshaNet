@@ -1,0 +1,8 @@
+python-telegram-bot==22.5
+feedparser
+requests
+pillow
+imagehash
+opencv-python-headless
+python-dotenv
+yt-dlp

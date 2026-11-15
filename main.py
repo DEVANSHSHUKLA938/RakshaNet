@@ -7,7 +7,12 @@ import cv2
 import feedparser
 import numpy as np
 from dotenv import load_dotenv
-from faster_whisper import WhisperModel
+try:
+    from faster_whisper import WhisperModel
+except ImportError:
+    class WhisperModel:
+        def init(self, *a, kw): pass
+        def transcribe(self, *a, kw): return [], None
 from PIL import Image, ImageDraw, ImageFont
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
@@ -175,4 +180,12 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
 app.add_handler(CallbackQueryHandler(button_tap))
+
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+if os.environ.get("PORT"):
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self): self.send_response(200); self.end_headers(); self.wfile.write(b"RakshaNet OK")
+        def log_message(self, *a): pass
+    threading.Thread(target=lambda: HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever(), daemon=True).start()
 app.run_polling()
