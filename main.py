@@ -141,8 +141,11 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("[Narrative] Checking official references...")
         q = urllib.parse.quote(f"{txt} PIB OR India official data OR fact check")
         feed = feedparser.parse(f"https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en")
-        fact = feed.entries[0].title if feed.entries else "No official confirmation found; verify before sharing."
-        purl = feed.entries[0].link if feed.entries else "https://factcheck.pib.gov.in/"
+        import re as _re
+        _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", txt)]
+        _m = next((e for e in feed.entries[:5] if _w and sum(1 for w in _w if w in e.title.lower()) >= min(2, len(_w))), None)
+        fact = _m.title if _m else "No official confirmation found for this claim; verify before sharing."
+        purl = _m.link if _m else "https://factcheck.pib.gov.in/"
         conn = sqlite3.connect(DB_FILE)
         conn.execute("CREATE TABLE IF NOT EXISTS narratives (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_type TEXT, counter_fact TEXT, proof_url TEXT)")
         conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
