@@ -206,7 +206,7 @@ def ai_reason(claim, heads, fb):
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {k}"},
-            json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}], "max_tokens": 120},
+            json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}]},
             timeout=15
         ).json()
         txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
