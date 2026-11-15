@@ -170,6 +170,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
         conn.commit()
         conn.close()
+        fact = ai_reason(txt, [e.title for e in feed.entries[:3]], fact)
         card = make_fact_card(txt, fact)
         await update.message.reply_photo(photo=open(card, "rb"), caption=f"Verified Ref: {fact}\nProof: {purl}")
         return
@@ -235,6 +236,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _m = next((e for e in feed.entries[:5] if _w and sum(1 for w in _w if w in e.title.lower()) >= min(2, len(_w))), None)
         fact = _m.title if _m else "No official confirmation found for this spoken claim; verify before sharing."
         purl = _m.link if _m else "https://factcheck.pib.gov.in/"
+        fact = ai_reason(speech, [e.title for e in feed.entries[:3]], fact)
         fact = ai_reason(speech, [e.title for e in feed.entries[:3]], fact)
         card = make_fact_card(speech[:160], fact)
         await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}")
