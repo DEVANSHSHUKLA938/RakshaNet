@@ -1,3 +1,4 @@
+import types
 import os
 import sqlite3
 import subprocess
@@ -21,7 +22,7 @@ class _GroqWhisper:
         class _Seg:
             def init(self, t): self.text = t
         if "error" in r: raise RuntimeError(r["error"].get("message", str(r["error"])))
-        return ([_Seg(r.get("text", ""))] if r.get("text") else []), None
+        return ([types.SimpleNamespace(text=r.get("text", ""))] if r.get("text") else []), None
 
 setattr(_GroqWhisper, chr(95)*2+"init"+chr(95)*2, lambda self, x="": None)
 if os.environ.get("GROQ_API_KEY"):
