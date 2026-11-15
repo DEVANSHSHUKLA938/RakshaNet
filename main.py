@@ -72,11 +72,11 @@ def build_counter(url, score, reason):
 
 def analyze_video(url):
     try:
-            title = subprocess.check_output(["yt-dlp", "--get-title", "--no-playlist", url], text=True).strip()
-        except Exception:
-            import requests
-            r = requests.get(f"https://www.youtube.com/oembed?url={url}&format=json", timeout=10).json()
-            title = r.get("title", "Video")
+        title = subprocess.check_output(["yt-dlp", "--get-title", "--no-playlist", url], text=True).strip()
+    except Exception:
+        import requests
+        r = requests.get(f"https://www.youtube.com/oembed?url={url}&format=json", timeout=10).json()
+        title = r.get("title", "Video")
     if any(tag in title.lower() for tag in IGNORE_TAGS):
         return 0, "SAFE (Entertainment/Disclaimer)", "", ["Skipped non-harmful content"]
 
