@@ -1,0 +1,5 @@
+.env
+venv/
+temp/
+output/
+*.db
