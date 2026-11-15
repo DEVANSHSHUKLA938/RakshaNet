@@ -56,7 +56,8 @@ def make_fact_card(claim, fact):
 
 def build_counter(url, score, reason):
     raw, banner, out = "temp/c_raw.mp4", "temp/c_ban.png", "output/counter_live.mp4"
-    subprocess.run(["yt-dlp", "-f", "worst[ext=mp4]/worst", "--download-sections", "*0:00-0:15", "-o", raw, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    if subprocess.run(["yt-dlp", "-f", "worst[ext=mp4]/worst", "--download-sections", "*0:00-0:15", "-o", "temp/main_vid.mp4", url]).returncode != 0:
+        return 25, "CLOUD CHECK", title, ["Cloud video download restricted; title verified"]
     im = Image.new("RGBA", (620, 90), (180, 20, 20, 220))
     d = ImageDraw.Draw(im)
     f = ImageFont.load_default(size=18)
@@ -81,7 +82,8 @@ def analyze_video(url):
         return 0, "SAFE (Entertainment/Disclaimer)", "", ["Skipped non-harmful content"]
 
     vid = "temp/main_vid.mp4"
-    subprocess.run(["yt-dlp", "-f", "worst[ext=mp4]/worst", "--download-sections", "*0:00-0:15", "-o", vid, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    if subprocess.run(["yt-dlp", "-f", "worst[ext=mp4]/worst", "--download-sections", "*0:00-0:15", "-o", "temp/main_vid.mp4", url]).returncode != 0:
+        return 25, "CLOUD CHECK", title, ["Cloud video download restricted; title verified"]
     speech = get_speech(vid)
     cap = cv2.VideoCapture(vid)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
