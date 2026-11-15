@@ -219,6 +219,20 @@ def deep_verify(claim):
     purl = best.link if best else "https://factcheck.pib.gov.in/"
     return heads, fb, purl
 #
+def ai_reason(claim, heads, fb):
+    k = os.environ.get("GROQ_API_KEY", "")
+    if not k:
+        return fb
+    try:
+        import requests
+        ctx = " | ".join(heads) if heads else "No matching headlines found."
+        p = f"Claim: {claim}\nAuthentic Headlines/Data: {ctx}\nRules: 1) Start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 2) If it is anti-India false data or a foreign video falsely tagged as India, expose it with factual data/origin. 3) NEVER accuse [FAKE] without contradicting evidence in headlines or known official facts; otherwise use [UNCONFIRMED]. 4) Reply in 1 crisp factual sentence."
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}]}, timeout=20).json()
+        txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        return txt if txt else fb
+    except Exception:
+        return fb
+
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse
     txt = (update.message.text or "").strip()
@@ -269,21 +283,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"[{verdict}] Score: {score}%\nSpeech: {speech or 'N/A'}\nReason: {r_txt}")
     except Exception as e:
         await update.message.reply_text(f"[Error] {e}")
-#def ai_reason(claim, heads, fb):
-    k = os.environ.get("GROQ_API_KEY", "")
-    if not k:
-        return fb
-    try:
-        import requests
-        ctx = " | ".join(heads) if heads else "No matching headlines found."
-        p = f"Claim: {claim}\nAuthentic Headlines/Data: {ctx}\nRules: 1) Start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 2) If it is anti-India false data or a foreign video falsely tagged as India, expose it with factual data/origin. 3) NEVER accuse [FAKE] without contradicting evidence in headlines or known official facts; otherwise use [UNCONFIRMED]. 4) Reply in 1 crisp factual sentence."
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}]}, timeout=20).json()
-        txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-        return txt if txt else fb
-    except Exception:
-        return fb
-#
-async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse
     m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
     if not m:
