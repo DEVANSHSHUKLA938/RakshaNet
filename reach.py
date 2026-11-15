@@ -50,7 +50,8 @@ def build_public_site():
 
     html = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RakshaNet — Indian Defence &amp; Fact-Check Portal</title>
+<title>RakshaNet by Devansh Shukla — Indian Defence &amp; Fact-Check Portal</title>
+<meta name="description" content="RakshaNet by Devansh Shukla: 24x7 open-source Indian defence monitor, PIB fact-check portal, and AI narrative counter desk.">
 <style>
   *{{box-sizing:border-box;margin:0;padding:0}}
   body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff;color:#1a1a1a;line-height:1.55;}}

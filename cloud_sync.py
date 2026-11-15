@@ -8,6 +8,7 @@ FEEDS = [
     ("PIB Official", "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3"),
     ("The Hindu", "https://www.thehindu.com/news/national/feeder/default.rss"),
     ("Indian Express", "https://indianexpress.com/section/india/feed/"),
+    ("DD News YouTube", "https://www.youtube.com/feeds/videos.xml?channel_id=UCKwucPzHZ7zCUIf7If-Wo1g"),
 ]
 KEYWORDS = ["Indian Army", "LOC border", "LAC Ladakh", "DRDO missile", "PIB Fact Check"]
 
