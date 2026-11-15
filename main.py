@@ -228,27 +228,32 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("[Narrative] Investigating authentic sources & data...")
         try:
             heads, fb, purl = deep_verify(txt)
-        except Exception:
-            heads, fb, purl = [], "Verification timeout; added to 24h watchlist.", "https://factcheck.pib.gov.in/"
-        fact = ai_reason(txt, heads, fb)
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute("CREATE TABLE IF NOT EXISTS narratives (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_type TEXT, counter_fact TEXT, proof_url TEXT)")
-        conn.execute("CREATE TABLE IF NOT EXISTS watchlist (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_url TEXT, checks INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
-        conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
-        if "[UNCONFIRMED]" in fact:
-            conn.execute("INSERT OR IGNORE INTO watchlist (claim, source_url) VALUES (?, ?)", (txt, purl))
-        conn.commit()
-        conn.close()
-        card = make_fact_card(txt, fact)
-        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
-        kb = [[InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
-        await update.message.reply_photo(photo=open(card, "rb"), caption=f"Verified Ref: {fact}\nProof: {purl}", reply_markup=InlineKeyboardMarkup(kb))
-        pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
-        if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
-            try:
-                await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact}\nProof: {purl}")
-            except Exception:
-                pass
+            fact = ai_reason(txt, heads, fb)
+            conn = sqlite3.connect(DB_FILE)
+            conn.execute("CREATE TABLE IF NOT EXISTS narratives (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_type TEXT, counter_fact TEXT, proof_url TEXT)")
+            conn.execute("CREATE TABLE IF NOT EXISTS watchlist (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_url TEXT, checks INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+            conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
+            if "[UNCONFIRMED]" in fact:
+                conn.execute("INSERT OR IGNORE INTO watchlist (claim, source_url) VALUES (?, ?)", (txt, purl))
+            conn.commit()
+            conn.close()
+            card = make_fact_card(txt, fact)
+            x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
+            kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
+            full_msg = f"Verified Ref: {fact}\nProof: {purl}"
+            if len(full_msg) <= 1000:
+                await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
+            else:
+                await update.message.reply_photo(photo=open(card, "rb"), caption=f"Verified Ref: {fact[:900]}", reply_markup=InlineKeyboardMarkup(kb))
+                await update.message.reply_text(full_msg)
+            pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
+            if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
+                try:
+                    await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+                except Exception:
+                    pass
+        except Exception as e:
+            await update.message.reply_text(f"[Error] {e}")
         return
     await update.message.reply_text("[RakshaNet] Scanning full video & Whisper speech...")
     try:
@@ -298,8 +303,13 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         fact = ai_reason(speech[:220], heads, fb)
         card = make_fact_card(speech[:180], fact)
         x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
-        kb = [[InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
-        await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}", reply_markup=InlineKeyboardMarkup(kb))
+        kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
+        full_msg = f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}"
+        if len(full_msg) <= 1000:
+            await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
+        else:
+            await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact[:700]}", reply_markup=InlineKeyboardMarkup(kb))
+            await update.message.reply_text(full_msg)
         pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
         if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
             try:
