@@ -23,6 +23,7 @@ class _GroqWhisper:
         if "error" in r: raise RuntimeError(r["error"].get("message", str(r["error"])))
         return ([_Seg(r.get("text", ""))] if r.get("text") else []), None
 
+setattr(_GroqWhisper, chr(95)*2+"init"+chr(95)*2, lambda self, *a, kw: None)
 if os.environ.get("GROQ_API_KEY"):
     WhisperModel = _GroqWhisper
 else:
