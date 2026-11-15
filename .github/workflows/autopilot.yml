@@ -1,0 +1,22 @@
+name: RakshaNet 24x7 Autopilot
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install feedparser
+      - run: python cloud_sync.py
+      - run: |
+          git config user.name "RakshaNet Bot"
+          git config user.email "bot@rakshanet.local"
+          git add docs/index.html
+          git diff --cached --quiet || (git commit -m "Auto-update RakshaNet feed" && git push)
