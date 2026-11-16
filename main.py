@@ -70,8 +70,9 @@ def get_speech(vid_path):
     return " ".join(parts).strip()
 #
 def make_fact_card(claim, fact):
-    claim = str(claim).replace("₹", "Rs.")
-    fact = str(fact).replace("₹", "Rs.")
+    import re as _rc
+    claim = _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs.").replace("\xa0", " ")).encode("ascii", "ignore").decode()
+    fact = _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs.").replace("\xa0", " ")).encode("ascii", "ignore").decode()
     img = Image.new("RGB", (1080, 1080), (255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle([(0, 0), (1080, 110)], fill=(20, 20, 20))
@@ -374,7 +375,7 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 print("[RakshaNet Complete] Running with Whisper + Fact-Card + Counter-Video... Press Ctrl+C to stop.")
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+app = ApplicationBuilder().token(BOT_TOKEN).write_timeout(30).read_timeout(30).connect_timeout(30).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
