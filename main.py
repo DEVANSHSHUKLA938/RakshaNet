@@ -387,6 +387,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 if os.environ.get("PORT"):
     class H(BaseHTTPRequestHandler):
         def do_GET(self): self.send_response(200); self.end_headers(); self.wfile.write(b"RakshaNet OK")
+        def do_HEAD(self): self.send_response(200); self.end_headers()
         def log_message(self, *a): pass
     threading.Thread(target=lambda: HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever(), daemon=True).start()
 
