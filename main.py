@@ -533,7 +533,12 @@ def extract_video_claim(vid_path, speech_text=""):
 
     return "[NO FACTUAL CLAIM] (" + "; ".join(diag) + ")"
 
-def build_pro_short(verdict, claim, fact, out_vid="/tmp/raksha_short.mp4"):
+def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
+    if c is None:
+        claim, fact = a, b
+        verdict = "FAKE" if "[FAKE]" in (fact or "") else ("MISLEADING" if "[MISLEADING]" in (fact or "") else ("VERIFIED" if "[VERIFIED]" in (fact or "") else "ALERT"))
+    else:
+        verdict, claim, fact = a, b, c
     import os, time, asyncio, subprocess, textwrap, edge_tts
     from PIL import Image, ImageDraw, ImageFont
 
