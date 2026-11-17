@@ -227,7 +227,7 @@ def ai_reason(claim, heads, fb):
     try:
         import requests
         ctx = " | ".join(heads) if heads else "No matching headlines found."
-        p = f"Claim: {claim}\nLive Verified Headlines (fetched right now, treat as 100% real): {ctx}\nRules: 1) If input is just a greeting/casual chat (Hi, Hello, Test, Kya haal), start with [CASUAL]. 2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 3) NEVER say the live headlines are fabricated or missing from archives. 4) Judge ONLY the Claim: if headlines cover/confirm it, use [VERIFIED]; if they debunk/contradict it or it is anti-India false data/misattributed foreign clip, use [FAKE] or [MISLEADING]; else [UNCONFIRMED]. 5) Reply in 1 crisp factual sentence."
+        p = f"Claim: {claim}\nLive Verified Headlines (fetched right now, treat as 100% real): {ctx}\nRules: 1) If input is just a greeting/casual chat (Hi, Hello, Test, Kya haal), start with [CASUAL]. 2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 3) NEVER say the live headlines are fabricated or missing from archives. 4) Judge ONLY the Claim: if headlines cover/confirm it, use [VERIFIED]; if they debunk/contradict it or it is anti-India false data/misattributed foreign clip, use [FAKE] or [MISLEADING]; else [UNCONFIRMED]. 5) Reply in 1-2 crisp factual sentences naming the exact source/agency, key date or figure, and real context; NEVER write vague phrases like recent headlines confirm."
         r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}]}, timeout=20).json()
         txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         return txt if txt else fb
@@ -245,7 +245,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             heads, fb, purl = deep_verify(txt)
             fact = ai_reason(txt, heads, fb)
             if fact.startswith("[CASUAL]"):
-                await update.message.reply_text("Koi claim, news, photo, ya video link bhejo check karne ke liye!")
+                await update.message.reply_text("Please send a news claim, photo/screenshot, voice note, or video link to verify.")
                 return
             conn = sqlite3.connect(DB_FILE)
             conn.execute("CREATE TABLE IF NOT EXISTS narratives (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_type TEXT, counter_fact TEXT, proof_url TEXT)")
