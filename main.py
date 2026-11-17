@@ -550,6 +550,91 @@ def extract_video_claim(vid_path, speech_text=""):
     return "[NO FACTUAL CLAIM]"
 
 
+def extract_video_claim(vid_path, speech_text=""):
+    import os, base64, requests, cv2
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not groq_key:
+        return (speech_text or "")[:300]
+
+    headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
+    clean_speech = (speech_text or "").strip()
+
+    if len(clean_speech) >= 25:
+        try:
+            prompt = (
+                "Extract the single main factual, news, political, financial, or public claim from this video transcript "
+                "in 1 concise English sentence (max 25 words). If the transcript is purely music lyrics, greetings, "
+                "or entertainment with no factual claim, reply with exactly: [NO FACTUAL CLAIM]\n\n"
+                f"Transcript:\n{clean_speech[:6000]}"
+            )
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 120,
+                },
+                timeout=20,
+            )
+            if r.status_code == 200:
+                ans = r.json()["choices"][0]["message"]["content"].strip()
+                if ans and "[NO FACTUAL CLAIM]" not in ans:
+                    return ans
+        except Exception:
+            pass
+
+    try:
+        cap = cv2.VideoCapture(vid_path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        frames_b64 = []
+        indices = [max(0, int(total * 0.25)), max(0, int(total * 0.65))] if total > 5 else [0]
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ok, frame = cap.read()
+            if ok and frame is not None:
+                ok_enc, buf = cv2.imencode(".jpg", frame)
+                if ok_enc:
+                    frames_b64.append(base64.b64encode(buf.tobytes()).decode("utf-8"))
+        cap.release()
+
+        if frames_b64:
+            content = [
+                {
+                    "type": "text",
+                    "text": (
+                        "Read any on-screen text, news headline, caption, or factual claim shown in these video frames "
+                        "and summarize the main claim in 1 concise English sentence (max 25 words). "
+                        "If there is no factual claim or news/text overlay (just music, nature, or pure entertainment), "
+                        "reply with exactly: [NO FACTUAL CLAIM]"
+                    ),
+                }
+            ]
+            for b64 in frames_b64:
+                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
+
+            rv = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                    "messages": [{"role": "user", "content": content}],
+                    "temperature": 0.1,
+                    "max_tokens": 140,
+                },
+                timeout=25,
+            )
+            if rv.status_code == 200:
+                vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
+                if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
+                    return vis_ans
+    except Exception:
+        pass
+
+    return "[NO FACTUAL CLAIM]"
+
+
 def build_pro_short(verdict, claim, fact, out_vid="/tmp/raksha_short.mp4"):
     import os, time, asyncio, subprocess, textwrap, edge_tts
     from PIL import Image, ImageDraw, ImageFont
