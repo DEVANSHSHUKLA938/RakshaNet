@@ -627,6 +627,13 @@ def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
     return vid
 
 def upload_yt_short(claim, fact, purl):
+    import re as _re
+    title = _re.sub(r"[<>\r\n]+", " ", str(title or "")).strip()
+    if not title:
+        title = "RakshaNet India Fact Check #Shorts"
+    if len(title) > 98:
+        base_t = title.replace("#Shorts", "").replace("#FactCheck", "").strip()[:76].strip()
+        title = f"{base_t} #Shorts #FactCheck"[:98].strip()
     import datetime, requests
     cid = os.environ.get("YT_CLIENT_ID", "").strip()
     csec = os.environ.get("YT_CLIENT_SECRET", "").strip()
