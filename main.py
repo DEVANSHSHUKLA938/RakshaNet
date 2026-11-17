@@ -47,28 +47,47 @@ whisper_model = None
 
 
 def get_speech(vid_path):
-    global whisper_model
-    if whisper_model is None:
-        whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    import os, subprocess, requests
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not groq_key or not os.path.exists(vid_path):
+        return ""
     os.makedirs("temp", exist_ok=True)
+    for fn in os.listdir("temp"):
+        if fn.startswith("chk_") and fn.endswith(".mp3"):
+            try:
+                os.remove(os.path.join("temp", fn))
+            except Exception:
+                pass
+    r_ff = subprocess.run(
+        ["ffmpeg", "-y", "-i", vid_path, "-vn", "-f", "segment", "-segment_time", "600",
+         "-c:a", "libmp3lame", "-b:a", "48k", "temp/chk_%03d.mp3"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+    if r_ff.returncode != 0:
+        return ""
+    files = sorted(f"temp/{f}" for f in os.listdir("temp") if f.startswith("chk_") and f.endswith(".mp3"))
     parts = []
-    if os.path.exists(vid_path) and os.path.getsize(vid_path) > 20 * 1024 * 1024:
-        subprocess.run(["ffmpeg", "-y", "-i", vid_path, "-f", "segment", "-segment_time", "600", "-c:a", "libmp3lame", "-b:a", "48k", "temp/chk_%03d.mp3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        files = sorted(f"temp/{f}" for f in os.listdir("temp") if f.startswith("chk_") and f.endswith(".mp3"))
-    else:
-        files = [vid_path]
-    offset = 0
     for fp in files:
-        segs, _ = whisper_model.transcribe(fp, beam_size=1)
-        for seg in segs:
-            t_txt = getattr(seg, "text", "").strip()
-            if t_txt:
-                parts.append(t_txt)
-        if fp != vid_path and os.path.exists(fp):
-            os.remove(fp)
-        offset += 600
+        try:
+            with open(fp, "rb") as af:
+                resp = requests.post(
+                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {groq_key}"},
+                    files={"file": (os.path.basename(fp), af, "audio/mpeg")},
+                    data={"model": "whisper-large-v3"},
+                    timeout=45,
+                )
+            if resp.status_code == 200:
+                txt = resp.json().get("text", "").strip()
+                if txt:
+                    parts.append(txt)
+        except Exception:
+            pass
+        finally:
+            if os.path.exists(fp):
+                os.remove(fp)
     return " ".join(parts).strip()
-#
+
 def make_fact_card(claim, fact):
     import re as _rc
     c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
