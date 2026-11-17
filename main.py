@@ -338,7 +338,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         speech = extract_video_claim(p, get_speech(p))
         if not speech or "[NO FACTUAL CLAIM]" in speech:
-            await update.message.reply_text("No factual claim detected in this media (music/entertainment clip).")
+            await update.message.reply_text(f"No factual claim detected in this media (music/entertainment clip). {speech if speech and '(' in speech else ''}")
             return
         heads, fb, purl = deep_verify(speech[:220])
         fact = ai_reason(speech[:220], heads, fb)
@@ -378,7 +378,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         speech = extract_video_claim(p, get_speech(p))
         if not speech or "[NO FACTUAL CLAIM]" in speech:
-            await update.message.reply_text("No factual claim detected in this media (music/entertainment clip).")
+            await update.message.reply_text(f"No factual claim detected in this media (music/entertainment clip). {speech if speech and '(' in speech else ''}")
             return
         heads, fb, purl = deep_verify(speech[:220])
         fact = ai_reason(speech[:220], heads, fb)
@@ -500,121 +500,38 @@ def extract_video_claim(vid_path, speech_text=""):
         except Exception:
             pass
 
+    diag = []
     try:
         import subprocess, time
         frames_b64 = []
         ts = int(time.time())
-        cmds = [
-            ["ffmpeg", "-y", "-i", vid_path, "-frames:v", "1", "-q:v", "4", f"/tmp/vf_{ts}_0.jpg"],
-            ["ffmpeg", "-y", "-i", vid_path, "-ss", "1", "-frames:v", "1", "-q:v", "4", f"/tmp/vf_{ts}_1.jpg"],
-        ]
-        for idx, cmd in enumerate(cmds):
-            out_img = f"/tmp/vf_{ts}_{idx}.jpg"
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if os.path.exists(out_img):
-                with open(out_img, "rb") as imf:
-                    frames_b64.append(base64.b64encode(imf.read()).decode("utf-8"))
-                os.remove(out_img)
+        out_img = f"/tmp/vf_{ts}_0.jpg"
+        r_f = subprocess.run(["ffmpeg", "-y", "-i", vid_path, "-frames:v", "1", "-q:v", "4", out_img], capture_output=True, text=True)
+        if os.path.exists(out_img):
+            with open(out_img, "rb") as imf:
+                frames_b64.append(base64.b64encode(imf.read()).decode("utf-8"))
+            os.remove(out_img)
+        diag.append(f"f={len(frames_b64)},rc={r_f.returncode}")
         if frames_b64:
-            content = [{"type": "text", "text": "Read any on-screen text, news headline, or factual claim in these frames and summarize it in 1 concise English sentence (max 25 words). If there is no factual claim (just music, nature, greetings, or entertainment), reply with exactly: [NO FACTUAL CLAIM]"}]
-            for b64 in frames_b64:
-                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
+            content = [
+                {"type": "text", "text": "Extract any news headline, text overlay, or factual claim visible in this video frame in 1 short English sentence. Only if there is zero factual claim or text (pure music/nature/greeting), reply: [NO FACTUAL CLAIM]"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frames_b64[0]}"}}
+            ]
             for mdl in ("meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"):
                 rv = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json={"model": mdl, "messages": [{"role": "user", "content": content}], "temperature": 0.1, "max_tokens": 140}, timeout=25)
+                diag.append(f"{mdl.split('/')[-1][:5]}={rv.status_code}")
                 if rv.status_code == 200:
                     vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
                     if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
                         return vis_ans
+                    diag.append("ans=" + vis_ans[:40])
                     break
+                else:
+                    diag.append(rv.text[:60])
     except Exception as e:
-        print("Vision fallback error:", e)
-    return "[NO FACTUAL CLAIM]"
+        diag.append(f"err={e}")
 
-
-def extract_video_claim(vid_path, speech_text=""):
-    import os, base64, requests, cv2
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if not groq_key:
-        return (speech_text or "")[:300]
-
-    headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
-    clean_speech = (speech_text or "").strip()
-
-    if len(clean_speech) >= 25:
-        try:
-            prompt = (
-                "Extract the single main factual, news, political, financial, or public claim from this video transcript "
-                "in 1 concise English sentence (max 25 words). If the transcript is purely music lyrics, greetings, "
-                "or entertainment with no factual claim, reply with exactly: [NO FACTUAL CLAIM]\n\n"
-                f"Transcript:\n{clean_speech[:6000]}"
-            )
-            r = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.1,
-                    "max_tokens": 120,
-                },
-                timeout=20,
-            )
-            if r.status_code == 200:
-                ans = r.json()["choices"][0]["message"]["content"].strip()
-                if ans and "[NO FACTUAL CLAIM]" not in ans:
-                    return ans
-        except Exception:
-            pass
-
-    try:
-        cap = cv2.VideoCapture(vid_path)
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-        frames_b64 = []
-        indices = [max(0, int(total * 0.25)), max(0, int(total * 0.65))] if total > 5 else [0]
-        for idx in indices:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ok, frame = cap.read()
-            if ok and frame is not None:
-                ok_enc, buf = cv2.imencode(".jpg", frame)
-                if ok_enc:
-                    frames_b64.append(base64.b64encode(buf.tobytes()).decode("utf-8"))
-        cap.release()
-
-        if frames_b64:
-            content = [
-                {
-                    "type": "text",
-                    "text": (
-                        "Read any on-screen text, news headline, caption, or factual claim shown in these video frames "
-                        "and summarize the main claim in 1 concise English sentence (max 25 words). "
-                        "If there is no factual claim or news/text overlay (just music, nature, or pure entertainment), "
-                        "reply with exactly: [NO FACTUAL CLAIM]"
-                    ),
-                }
-            ]
-            for b64 in frames_b64:
-                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
-
-            rv = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": "meta-llama/llama-4-scout-17b-16e-instruct",
-                    "messages": [{"role": "user", "content": content}],
-                    "temperature": 0.1,
-                    "max_tokens": 140,
-                },
-                timeout=25,
-            )
-            if rv.status_code == 200:
-                vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
-                if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
-                    return vis_ans
-    except Exception:
-        pass
-
-    return "[NO FACTUAL CLAIM]"
-
+    return "[NO FACTUAL CLAIM] (" + "; ".join(diag) + ")"
 
 def build_pro_short(verdict, claim, fact, out_vid="/tmp/raksha_short.mp4"):
     import os, time, asyncio, subprocess, textwrap, edge_tts
