@@ -440,6 +440,73 @@ def _watchlist_loop():
             conn.close()
         except Exception:pass
 #
+
+def build_pro_short(claim, fact):
+    import asyncio, edge_tts
+    os.makedirs("output", exist_ok=True)
+    os.makedirs("temp", exist_ok=True)
+    card_bg = make_fact_card(claim[:180], fact[:280])
+    aud = "temp/short_vo.mp3"
+    vid = "output/pro_short.mp4"
+    script = f"Fact Check Alert! {claim[:110]}. {fact[:200]}. Verify before sharing with RakshaNet."
+    async def _tts():
+        await edge_tts.Communicate(script, "en-IN-NeerjaNeural").save(aud)
+    asyncio.run(_tts())
+    subprocess.run([
+        "ffmpeg", "-y", "-loop", "1", "-i", card_bg, "-i", aud,
+        "-vf", "scale=1080:1080,pad=1080:1920:0:420:black,zoompan=z='min(zoom+0.0008,1.08)':d=1:s=1080x1920:fps=24",
+        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest", "-pix_fmt", "yuv420p", vid
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    if os.path.exists(aud):
+        os.remove(aud)
+    return vid
+#
+def upload_yt_short(claim, fact, purl):
+    import datetime, requests
+    cid = os.environ.get("YT_CLIENT_ID", "")
+    csec = os.environ.get("YT_CLIENT_SECRET", "")
+    rtok = os.environ.get("YT_REFRESH_TOKEN", "")
+    if not (cid and csec and rtok):
+        return
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("CREATE TABLE IF NOT EXISTS yt_log (id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT, claim TEXT)")
+        today = datetime.date.today().isoformat()
+        cnt = conn.execute("SELECT COUNT(*) FROM yt_log WHERE day=?", (today,)).fetchone()[0]
+        if cnt >= 3:
+            conn.close()
+            return
+        conn.execute("INSERT INTO yt_log (day, claim) VALUES (?, ?)", (today, claim[:120]))
+        conn.commit()
+        conn.close()
+        vid = build_pro_short(claim, fact)
+        tok = requests.post("https://oauth2.googleapis.com/token", data={"client_id": cid, "client_secret": csec, "refresh_token": rtok, "grant_type": "refresh_token"}, timeout=15).json().get("access_token", "")
+        if not tok:
+            return
+        tag = "[FAKE]" if "[FAKE]" in fact else ("[MISLEADING]" if "[MISLEADING]" in fact else "[VERIFIED]")
+        meta = {
+            "snippet": {
+                "title": f"{tag} {claim[:75]} #Shorts #FactCheck",
+                "description": f"{fact}\n\nProof: {purl}\n\nVerify: https://t.me/rakshanet_devansh_bot\nDesk: https://t.me/RakshaNet_India\n#Shorts #FactCheck #India",
+                "categoryId": "25"
+            },
+            "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
+        }
+        init_r = requests.post(
+            "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+            headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
+            json=meta, timeout=15
+        )
+        up_url = init_r.headers.get("Location", "")
+        if up_url and os.path.exists(vid):
+            requests.put(up_url, headers={"Content-Type": "video/mp4"}, data=open(vid, "rb").read(), timeout=60)
+    except Exception:
+        pass
+#
+def _yt_bg(q, fact, purl):
+    import threading
+    threading.Thread(target=upload_yt_short, args=(q, fact, purl), daemon=True).start()
+#
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
