@@ -272,6 +272,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
                 try:
                     await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+                    _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
                 except Exception:
                     pass
         except Exception as e:
@@ -299,6 +300,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
                 try:
                     await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Video Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+                    _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
                 except Exception:
                     pass
     except Exception as e:
@@ -334,6 +336,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
             try:
                 await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact}\nProof: {purl}")
+                _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
             except Exception:
                 pass
     except Exception as e:
@@ -373,6 +376,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
             try:
                 await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+                _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
             except Exception:
                 pass
     except Exception as e:
@@ -408,6 +412,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
             try:
                 await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+                _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
             except Exception:
                 pass
     except Exception as e:
