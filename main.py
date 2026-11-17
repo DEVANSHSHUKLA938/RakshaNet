@@ -416,7 +416,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await f.download_to_drive(p)
         k = os.environ.get("GROQ_API_KEY", "")
         b64 = base64.b64encode(open(p, "rb").read()).decode()
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "meta-llama/llama-4-scout-17b-16e-instruct", "messages": [{"role": "user", "content": [{"type": "text", "text": "Extract the main viral claim, notice text, or country/location clues from this image in 1-2 short English sentences."}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]}, timeout=20).json()
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "qwen/qwen3.8-27b", "messages": [{"role": "user", "content": [{"type": "text", "text": "Extract the main viral claim, notice text, or country/location clues from this image in 1-2 short English sentences."}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]}, timeout=20).json()
         claim = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if not claim:
             await update.message.reply_text("Could not read clear text/claim from this image.")
@@ -517,7 +517,7 @@ def extract_video_claim(vid_path, speech_text=""):
                 {"type": "text", "text": "Extract any news headline, text overlay, or factual claim visible in this video frame in 1 short English sentence. Only if there is zero factual claim or text (pure music/nature/greeting), reply: [NO FACTUAL CLAIM]"},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frames_b64[0]}"}}
             ]
-            for mdl in ("meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"):
+            for mdl in ("qwen/qwen3.8-27b", "meta-models/muse-spark-open"):
                 rv = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json={"model": mdl, "messages": [{"role": "user", "content": content}], "temperature": 0.1, "max_tokens": 140}, timeout=25)
                 diag.append(f"{mdl.split('/')[-1][:5]}={rv.status_code}")
                 if rv.status_code == 200:
