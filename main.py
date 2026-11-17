@@ -71,8 +71,8 @@ def get_speech(vid_path):
 #
 def make_fact_card(claim, fact):
     import re as _rc
-    claim = _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs.").replace("\xa0", " ")).encode("ascii", "ignore").decode()
-    fact = _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs.").replace("\xa0", " ")).encode("ascii", "ignore").decode()
+    c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+    f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
     img = Image.new("RGB", (1080, 1080), (255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle([(0, 0), (1080, 110)], fill=(20, 20, 20))
@@ -80,10 +80,10 @@ def make_fact_card(claim, fact):
     f_h, f_b, f_t = ImageFont.load_default(size=40), ImageFont.load_default(size=32), ImageFont.load_default(size=26)
     d.text((50, 32), "RAKSHANET | FACT & NARRATIVE CHECK", fill=(255, 255, 255), font=f_h)
     d.text((50, 170), "VIRAL CLAIM:", fill=(200, 30, 30), font=f_t)
-    d.text((50, 215), textwrap.fill(claim[:220], width=42), fill=(20, 20, 20), font=f_b)
+    d.text((50, 215), textwrap.fill(c_clean[:220], width=42), fill=(20, 20, 20), font=f_b)
     d.line([(50, 480), (1030, 480)], fill=(220, 220, 220), width=3)
     d.text((50, 520), "VERIFIED REFERENCE:", fill=(20, 100, 40), font=f_t)
-    d.text((50, 565), textwrap.fill(fact[:320], width=42), fill=(20, 20, 20), font=f_b)
+    d.text((50, 565), textwrap.fill(f_clean[:320], width=42), fill=(20, 20, 20), font=f_b)
     d.text((50, 990), "RakshaNet Open-Source Desk | Verify Before Sharing", fill=(110, 110, 110), font=f_t)
     os.makedirs("output", exist_ok=True)
     out = "output/fact_card.png"
@@ -189,22 +189,20 @@ async def radar_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def deep_verify(claim):
-    import urllib.parse, re as _re
+    import urllib.parse, re as _re, requests as _rq
     q1 = " ".join(claim.split()[:10])
     queries = [q1]
     k = os.environ.get("GROQ_API_KEY", "")
     if k:
         try:
-            import requests
-            r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": f"Extract 1 concise English search query (max 6 words, no quotes) to fact-check this claim using official/authentic sources: {claim[:220]}"}]}, timeout=12).json()
+            r = _rq.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": f"Extract 1 concise English search query (max 6 words, no quotes) to fact-check this claim using official/authentic sources: {claim[:220]}"}]}, timeout=12).json()
             q2 = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
             if q2 and len(q2.split()) <= 8:
                 queries.append(q2)
         except Exception:
             pass
-    auth_domains = ("pib.gov.in", "gov.in", "nic.in", "rbi.org.in", "isro.gov.in", "worldbank.org", "imf.org", "who.int", "un.org", "boomlive.in", "factly.in", "vishvasnews.com", "reuters.com", "apnews.com", "thehindu.com", "indianexpress.com", "ddnews.gov.in", "ptinews.com", "britannica.com")
+    auth_domains = ("pib.gov.in", "gov.in", "nic.in", "rbi.org.in", "isro.gov.in", "worldbank.org", "imf.org", "who.int", "un.org", "boomlive.in", "factly.in", "vishvasnews.com", "reuters.com", "apnews.com", "thehindu.com", "indianexpress.com", "ddnews.gov.in", "ptinews.com", "britannica.com", "bbc.com", "aljazeera.com", "theguardian.com")
     all_entries = []
-    import requests as _rq
     for q in queries[:2]:
         try:
             res = _rq.get(f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&when:30d&hl=en-IN&gl=IN&ceid=IN:en", timeout=6).text
@@ -215,7 +213,9 @@ def deep_verify(claim):
     best = next((e for e in all_entries if any(d in getattr(e, "link", "").lower() or d in getattr(e, "title", "").lower() for d in auth_domains) and (_w and sum(1 for w in _w if w in e.title.lower()) >= 1)), None)
     if not best:
         best = next((e for e in all_entries if _w and sum(1 for w in _w if w in e.title.lower()) >= min(2, len(_w))), None)
-    heads = [e.title for e in all_entries[:4]]
+    if not best and all_entries:
+        best = all_entries[0]
+    heads = ([best.title] if best else []) + [e.title for e in all_entries if e is not best][:3]
     fb = best.title if best else "No official confirmation found yet; added to 24h auto-watchlist."
     purl = best.link if best else "https://factcheck.pib.gov.in/"
     return heads, fb, purl
@@ -227,13 +227,13 @@ def ai_reason(claim, heads, fb):
     try:
         import requests
         ctx = " | ".join(heads) if heads else "No matching headlines found."
-        p = f"Claim: {claim}\nAuthentic Headlines/Data: {ctx}\nRules: 1) Start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 2) If it is anti-India false data or a foreign video falsely tagged as India, expose it with factual data/origin. 3) NEVER accuse [FAKE] without contradicting evidence in headlines or known official facts; otherwise use [UNCONFIRMED]. 4) Reply in 1 crisp factual sentence."
+        p = f"Claim: {claim}\nLive Verified Headlines (fetched right now, treat as 100% real): {ctx}\nRules: 1) If input is just a greeting/casual chat (Hi, Hello, Test, Kya haal), start with [CASUAL]. 2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 3) NEVER say the live headlines are fabricated or missing from archives. 4) Judge ONLY the Claim: if headlines cover/confirm it, use [VERIFIED]; if they debunk/contradict it or it is anti-India false data/misattributed foreign clip, use [FAKE] or [MISLEADING]; else [UNCONFIRMED]. 5) Reply in 1 crisp factual sentence."
         r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}]}, timeout=20).json()
         txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         return txt if txt else fb
     except Exception:
         return fb
-
+#
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse
     txt = (update.message.text or "").strip()
@@ -244,12 +244,19 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             heads, fb, purl = deep_verify(txt)
             fact = ai_reason(txt, heads, fb)
+            if fact.startswith("[CASUAL]"):
+                await update.message.reply_text("Koi claim, news, photo, ya video link bhejo check karne ke liye!")
+                return
             conn = sqlite3.connect(DB_FILE)
             conn.execute("CREATE TABLE IF NOT EXISTS narratives (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_type TEXT, counter_fact TEXT, proof_url TEXT)")
-            conn.execute("CREATE TABLE IF NOT EXISTS watchlist (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_url TEXT, checks INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+            conn.execute("CREATE TABLE IF NOT EXISTS watchlist (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT UNIQUE, source_url TEXT, chat_id INTEGER DEFAULT 0, checks INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+            try:
+                conn.execute("ALTER TABLE watchlist ADD COLUMN chat_id INTEGER DEFAULT 0")
+            except Exception:
+                pass
             conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
             if "[UNCONFIRMED]" in fact:
-                conn.execute("INSERT OR IGNORE INTO watchlist (claim, source_url) VALUES (?, ?)", (txt, purl))
+                conn.execute("INSERT OR IGNORE INTO watchlist (claim, source_url, chat_id) VALUES (?, ?, ?)", (txt, purl, update.effective_chat.id))
             conn.commit()
             conn.close()
             card = make_fact_card(txt, fact)
@@ -281,7 +288,19 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await update.message.reply_text(f"[{verdict}] Score: {score}%\nSpeech: {speech or 'N/A'}\n{r_txt}")
         else:
-            await update.message.reply_text(f"[{verdict}] Score: {score}%\nSpeech: {speech or 'N/A'}\nReason: {r_txt}")
+            q_src = speech if (speech and len(speech.split()) >= 4) else txt
+            heads, fb, purl = deep_verify(q_src[:220])
+            fact = ai_reason(q_src[:220], heads, fb)
+            card = make_fact_card(q_src[:180], fact)
+            x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
+            kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
+            await update.message.reply_photo(photo=open(card, "rb"), caption=f"[{verdict}] Score: {score}%\nRef: {fact[:700]}", reply_markup=InlineKeyboardMarkup(kb))
+            pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
+            if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
+                try:
+                    await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Video Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+                except Exception:
+                    pass
     except Exception as e:
         await update.message.reply_text(f"[Error] {e}")
 #async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -362,6 +381,65 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if os.path.exists(p):
             os.remove(p)
 
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import base64, requests, urllib.parse
+    if not update.message.photo:
+        return
+    await update.message.reply_text("[RakshaNet] Scanning image/screenshot with Vision AI...")
+    os.makedirs("temp", exist_ok=True)
+    p = "temp/tg_photo.jpg"
+    try:
+        f = await context.bot.get_file(update.message.photo[-1].file_id)
+        await f.download_to_drive(p)
+        k = os.environ.get("GROQ_API_KEY", "")
+        b64 = base64.b64encode(open(p, "rb").read()).decode()
+        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "meta-llama/llama-4-scout-17b-16e-instruct", "messages": [{"role": "user", "content": [{"type": "text", "text": "Extract the main viral claim, notice text, or country/location clues from this image in 1-2 short English sentences."}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]}, timeout=20).json()
+        claim = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        if not claim:
+            await update.message.reply_text("Could not read clear text/claim from this image.")
+            return
+        heads, fb, purl = deep_verify(claim[:220])
+        fact = ai_reason(claim[:220], heads, fb)
+        card = make_fact_card(claim[:180], fact)
+        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
+        kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
+        await update.message.reply_photo(photo=open(card, "rb"), caption=f"Image Claim: {claim[:220]}\nRef: {fact[:650]}", reply_markup=InlineKeyboardMarkup(kb))
+        pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
+        if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
+            try:
+                await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
+            except Exception:
+                pass
+    except Exception as e:
+        await update.message.reply_text(f"[Photo Error] {e}")
+    finally:
+        if os.path.exists(p):
+            os.remove(p)
+#
+def _watchlist_loop():
+    import time, requests
+    while True:
+        time.sleep(7200)
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            rows = conn.execute("SELECT id, claim, chat_id, checks FROM watchlist WHERE status='PENDING' AND checks < 12").fetchall()
+            for wid, wclaim, wchat, wchk in rows:
+                heads, fb, purl = deep_verify(wclaim)
+                fact = ai_reason(wclaim, heads, fb)
+                if any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
+                    conn.execute("UPDATE watchlist SET status='RESOLVED', checks=? WHERE id=?", (wchk + 1, wid))
+                    msg = f"Watchlist Update: {wclaim[:100]}\n{fact}\nProof: {purl}"
+                    if wchat:
+                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": wchat, "text": msg}, timeout=10)
+                    pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
+                    if pub_ch:
+                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={"chat_id": pub_ch, "text": msg}, timeout=10)
+                else:
+                    conn.execute("UPDATE watchlist SET checks=? WHERE id=?", (wchk + 1, wid))
+            conn.commit()
+            conn.close()
+        except Exception:pass
+#
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -380,7 +458,10 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
 app.add_handler(MessageHandler(filters.VIDEO | filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE, handle_media))
+app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 app.add_handler(CallbackQueryHandler(button_tap))
+import threading as _wt
+_wt.Thread(target=_watchlist_loop, daemon=True).start()
 
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
