@@ -453,9 +453,9 @@ def build_pro_short(claim, fact):
         await edge_tts.Communicate(script, "en-IN-NeerjaNeural").save(aud)
     asyncio.run(_tts())
     subprocess.run([
-        "ffmpeg", "-y", "-loop", "1", "-i", card_bg, "-i", aud,
-        "-vf", "scale=1080:1080,pad=1080:1920:0:420:black,zoompan=z='min(zoom+0.0008,1.08)':d=1:s=1080x1920:fps=24",
-        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest", "-pix_fmt", "yuv420p", vid
+        "ffmpeg", "-y", "-loop", "1", "-framerate", "2", "-i", card_bg, "-i", aud,
+        "-vf", "scale=720:720,pad=720:1280:0:280:black,fade=t=in:st=0:d=0.5",
+        "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-r", "12", "-c:a", "aac", "-shortest", "-pix_fmt", "yuv420p", vid
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     if os.path.exists(aud):
         os.remove(aud)
@@ -463,10 +463,11 @@ def build_pro_short(claim, fact):
 #
 def upload_yt_short(claim, fact, purl):
     import datetime, requests
-    cid = os.environ.get("YT_CLIENT_ID", "")
-    csec = os.environ.get("YT_CLIENT_SECRET", "")
-    rtok = os.environ.get("YT_REFRESH_TOKEN", "")
+    cid = os.environ.get("YT_CLIENT_ID", "").strip()
+    csec = os.environ.get("YT_CLIENT_SECRET", "").strip()
+    rtok = os.environ.get("YT_REFRESH_TOKEN", "").strip()
     if not (cid and csec and rtok):
+        print("[YT] Missing YT env vars", flush=True)
         return
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -475,13 +476,16 @@ def upload_yt_short(claim, fact, purl):
         cnt = conn.execute("SELECT COUNT(*) FROM yt_log WHERE day=?", (today,)).fetchone()[0]
         if cnt >= 3:
             conn.close()
+            print("[YT] Daily 3-upload limit reached", flush=True)
             return
         conn.execute("INSERT INTO yt_log (day, claim) VALUES (?, ?)", (today, claim[:120]))
         conn.commit()
         conn.close()
         vid = build_pro_short(claim, fact)
-        tok = requests.post("https://oauth2.googleapis.com/token", data={"client_id": cid, "client_secret": csec, "refresh_token": rtok, "grant_type": "refresh_token"}, timeout=15).json().get("access_token", "")
+        tok_r = requests.post("https://oauth2.googleapis.com/token", data={"client_id": cid, "client_secret": csec, "refresh_token": rtok, "grant_type": "refresh_token"}, timeout=15).json()
+        tok = tok_r.get("access_token", "")
         if not tok:
+            print(f"[YT Auth Error] {tok_r}", flush=True)
             return
         tag = "[FAKE]" if "[FAKE]" in fact else ("[MISLEADING]" if "[MISLEADING]" in fact else "[VERIFIED]")
         meta = {
@@ -498,10 +502,13 @@ def upload_yt_short(claim, fact, purl):
             json=meta, timeout=15
         )
         up_url = init_r.headers.get("Location", "")
-        if up_url and os.path.exists(vid):
-            requests.put(up_url, headers={"Content-Type": "video/mp4"}, data=open(vid, "rb").read(), timeout=60)
-    except Exception:
-        pass
+        if not up_url:
+            print(f"[YT Init Error] {init_r.status_code} {init_r.text[:200]}", flush=True)
+            return
+        up_r = requests.put(up_url, headers={"Content-Type": "video/mp4"}, data=open(vid, "rb").read(), timeout=60)
+        print(f"[YT Uploaded] {up_r.status_code} {up_r.text[:150]}", flush=True)
+    except Exception as e:
+        print(f"[YT Error] {e}", flush=True)
 #
 def _yt_bg(q, fact, purl):
     import threading
