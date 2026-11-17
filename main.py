@@ -466,7 +466,7 @@ def _watchlist_loop():
 #
 
 def extract_video_claim(vid_path, speech_text=""):
-    import os, base64, requests, cv2
+    import os, base64, requests
     groq_key = os.environ.get("GROQ_API_KEY", "").strip()
     if not groq_key:
         return (speech_text or "")[:300]
@@ -501,52 +501,32 @@ def extract_video_claim(vid_path, speech_text=""):
             pass
 
     try:
-        cap = cv2.VideoCapture(vid_path)
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        import subprocess, time
+        dur = 2.0
+        pr = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", vid_path], capture_output=True, text=True)
+        if pr.returncode == 0 and pr.stdout.strip():
+            dur = max(1.0, float(pr.stdout.strip()))
+        times = [round(dur * 0.25, 2), round(dur * 0.65, 2)] if dur > 2.0 else [0.5]
         frames_b64 = []
-        indices = [max(0, int(total * 0.25)), max(0, int(total * 0.65))] if total > 5 else [0]
-        for idx in indices:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ok, frame = cap.read()
-            if ok and frame is not None:
-                ok_enc, buf = cv2.imencode(".jpg", frame)
-                if ok_enc:
-                    frames_b64.append(base64.b64encode(buf.tobytes()).decode("utf-8"))
-        cap.release()
-
+        ts = int(time.time())
+        for idx, t in enumerate(times):
+            out_img = f"/tmp/vf_{ts}_{idx}.jpg"
+            subprocess.run(["ffmpeg", "-y", "-ss", str(t), "-i", vid_path, "-frames:v", "1", "-q:v", "4", out_img], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if os.path.exists(out_img):
+                with open(out_img, "rb") as imf:
+                    frames_b64.append(base64.b64encode(imf.read()).decode("utf-8"))
+                os.remove(out_img)
         if frames_b64:
-            content = [
-                {
-                    "type": "text",
-                    "text": (
-                        "Read any on-screen text, news headline, caption, or factual claim shown in these video frames "
-                        "and summarize the main claim in 1 concise English sentence (max 25 words). "
-                        "If there is no factual claim or news/text overlay (just music, nature, or pure entertainment), "
-                        "reply with exactly: [NO FACTUAL CLAIM]"
-                    ),
-                }
-            ]
+            content = [{"type": "text", "text": "Read any on-screen text, news headline, or factual claim in these frames and summarize it in 1 concise English sentence (max 25 words). If there is no factual claim (just music, nature, greetings, or entertainment), reply with exactly: [NO FACTUAL CLAIM]"}]
             for b64 in frames_b64:
                 content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
-
-            rv = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": "meta-llama/llama-4-scout-17b-16e-instruct",
-                    "messages": [{"role": "user", "content": content}],
-                    "temperature": 0.1,
-                    "max_tokens": 140,
-                },
-                timeout=25,
-            )
+            rv = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json={"model": "meta-llama/llama-4-scout-17b-16e-instruct", "messages": [{"role": "user", "content": content}], "temperature": 0.1, "max_tokens": 140}, timeout=25)
             if rv.status_code == 200:
                 vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
                 if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
                     return vis_ans
-    except Exception:
-        pass
-
+    except Exception as e:
+        print("Vision fallback error:", e)
     return "[NO FACTUAL CLAIM]"
 
 
