@@ -6,3 +6,4 @@ imagehash
 opencv-python-headless
 python-dotenv
 yt-dlp
+edge-tts
