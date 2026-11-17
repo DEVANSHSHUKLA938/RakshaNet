@@ -317,9 +317,9 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p = f"temp/tg_media{ext}"
     await f.download_to_drive(p)
     try:
-        speech = get_speech(p)
-        if not speech:
-            await update.message.reply_text("No clear speech detected in this media.")
+        speech = extract_video_claim(p, get_speech(p))
+        if not speech or "[NO FACTUAL CLAIM]" in speech:
+            await update.message.reply_text("No factual claim detected in this media (music/entertainment clip).")
             return
         heads, fb, purl = deep_verify(speech[:220])
         fact = ai_reason(speech[:220], heads, fb)
@@ -357,9 +357,9 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p = f"temp/tg_media{ext}"
     await f.download_to_drive(p)
     try:
-        speech = get_speech(p)
-        if not speech:
-            await update.message.reply_text("No clear speech detected in this media.")
+        speech = extract_video_claim(p, get_speech(p))
+        if not speech or "[NO FACTUAL CLAIM]" in speech:
+            await update.message.reply_text("No factual claim detected in this media (music/entertainment clip).")
             return
         heads, fb, purl = deep_verify(speech[:220])
         fact = ai_reason(speech[:220], heads, fb)
@@ -446,26 +446,179 @@ def _watchlist_loop():
         except Exception:pass
 #
 
-def build_pro_short(claim, fact):
-    import asyncio, edge_tts
-    os.makedirs("output", exist_ok=True)
-    os.makedirs("temp", exist_ok=True)
-    card_bg = make_fact_card(claim[:180], fact[:280])
-    aud = "temp/short_vo.mp3"
-    vid = "output/pro_short.mp4"
-    script = f"Fact Check Alert! {claim[:110]}. {fact[:200]}. Verify before sharing with RakshaNet."
+def extract_video_claim(vid_path, speech_text=""):
+    import os, base64, requests, cv2
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not groq_key:
+        return (speech_text or "")[:300]
+
+    headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
+    clean_speech = (speech_text or "").strip()
+
+    if len(clean_speech) >= 25:
+        try:
+            prompt = (
+                "Extract the single main factual, news, political, financial, or public claim from this video transcript "
+                "in 1 concise English sentence (max 25 words). If the transcript is purely music lyrics, greetings, "
+                "or entertainment with no factual claim, reply with exactly: [NO FACTUAL CLAIM]\n\n"
+                f"Transcript:\n{clean_speech[:6000]}"
+            )
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 120,
+                },
+                timeout=20,
+            )
+            if r.status_code == 200:
+                ans = r.json()["choices"][0]["message"]["content"].strip()
+                if ans and "[NO FACTUAL CLAIM]" not in ans:
+                    return ans
+        except Exception:
+            pass
+
+    try:
+        cap = cv2.VideoCapture(vid_path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        frames_b64 = []
+        indices = [max(0, int(total * 0.25)), max(0, int(total * 0.65))] if total > 5 else [0]
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ok, frame = cap.read()
+            if ok and frame is not None:
+                ok_enc, buf = cv2.imencode(".jpg", frame)
+                if ok_enc:
+                    frames_b64.append(base64.b64encode(buf.tobytes()).decode("utf-8"))
+        cap.release()
+
+        if frames_b64:
+            content = [
+                {
+                    "type": "text",
+                    "text": (
+                        "Read any on-screen text, news headline, caption, or factual claim shown in these video frames "
+                        "and summarize the main claim in 1 concise English sentence (max 25 words). "
+                        "If there is no factual claim or news/text overlay (just music, nature, or pure entertainment), "
+                        "reply with exactly: [NO FACTUAL CLAIM]"
+                    ),
+                }
+            ]
+            for b64 in frames_b64:
+                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
+
+            rv = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                    "messages": [{"role": "user", "content": content}],
+                    "temperature": 0.1,
+                    "max_tokens": 140,
+                },
+                timeout=25,
+            )
+            if rv.status_code == 200:
+                vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
+                if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
+                    return vis_ans
+    except Exception:
+        pass
+
+    return "[NO FACTUAL CLAIM]"
+
+
+def build_pro_short(verdict, claim, fact, out_vid="/tmp/raksha_short.mp4"):
+    import os, time, asyncio, subprocess, textwrap, edge_tts
+    from PIL import Image, ImageDraw, ImageFont
+
+    ts = int(time.time())
+    card_bg = f"/tmp/short_bg_{ts}.png"
+    aud = f"/tmp/short_aud_{ts}.mp3"
+    vid = out_vid if out_vid else f"/tmp/raksha_short_{ts}.mp4"
+
+    v_up = (verdict or "ALERT").upper()
+    if "FAKE" in v_up or "FALSE" in v_up:
+        badge_col = (195, 30, 30)
+        badge_txt = "FAKE NEWS ALERT"
+    elif "MISLEADING" in v_up:
+        badge_col = (210, 115, 0)
+        badge_txt = "MISLEADING CLAIM"
+    elif "TRUE" in v_up or "VERIFIED" in v_up:
+        badge_col = (20, 130, 55)
+        badge_txt = "VERIFIED FACT"
+    else:
+        badge_col = (35, 90, 175)
+        badge_txt = "FACT CHECK UPDATE"
+
+    img = Image.new("RGB", (720, 1280), (14, 22, 42))
+    d = ImageDraw.Draw(img)
+
+    def _font(sz, bold=False):
+        paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ]
+        for fp in paths:
+            if os.path.exists(fp):
+                try:
+                    return ImageFont.truetype(fp, sz)
+                except Exception:
+                    pass
+        return ImageFont.load_default()
+
+    f_hdr = _font(30, bold=True)
+    f_bdg = _font(32, bold=True)
+    f_s = _font(22, bold=True)
+    f_b = _font(28, bold=True)
+    f_f = _font(25, bold=False)
+    f_ft = _font(20, bold=False)
+
+    d.rectangle([(0, 0), (720, 110)], fill=(10, 16, 32))
+    d.text((40, 38), "RAKSHANET INDIA  •  FACT CHECK", fill=(255, 255, 255), font=f_hdr)
+    d.rectangle([(0, 110), (720, 116)], fill=(245, 165, 35))
+
+    d.rounded_rectangle([(45, 148), (675, 224)], radius=14, fill=badge_col)
+    d.text((70, 168), badge_txt, fill=(255, 255, 255), font=f_bdg)
+
+    d.rounded_rectangle([(35, 250), (685, 1130)], radius=22, fill=(248, 250, 253))
+    c_txt = (claim or "").replace("₹", "Rs.").strip()
+    f_txt = (fact or "").replace("₹", "Rs.").strip()
+
+    d.text((55, 275), "VIRAL CLAIM:", fill=(185, 28, 28), font=f_s)
+    d.text((55, 315), textwrap.fill(c_txt[:180], width=34), fill=(20, 20, 20), font=f_b)
+    d.line([(55, 535), (665, 535)], fill=(220, 220, 220), width=3)
+
+    d.text((55, 565), "VERIFIED REALITY & PROOF:", fill=(15, 110, 45), font=f_s)
+    f_wrap = textwrap.fill(f_txt[:310], width=34)
+    d.text((55, 610), f_wrap, fill=(30, 35, 45), font=f_f)
+
+    d.rectangle([(0, 1165), (720, 1280)], fill=(10, 16, 32))
+    d.text((45, 1190), "Verify any news: t.me/rakshanet_devansh_bot", fill=(220, 230, 245), font=f_ft)
+    d.text((45, 1225), "Live Feed: t.me/RakshaNet_India", fill=(245, 185, 65), font=f_ft)
+    img.save(card_bg)
+
+    narration = f"{badge_txt}. Claim: {c_txt[:160]}. Reality: {f_txt[:260]}. Verify news anytime on RakshaNet."
     async def _tts():
-        await edge_tts.Communicate(script, "en-IN-NeerjaNeural").save(aud)
+        comm = edge_tts.Communicate(narration, "en-IN-NeerjaNeural")
+        await comm.save(aud)
     asyncio.run(_tts())
+
     subprocess.run([
         "ffmpeg", "-y", "-loop", "1", "-framerate", "2", "-i", card_bg, "-i", aud,
-        "-vf", "scale=720:720,pad=720:1280:0:280:black,fade=t=in:st=0:d=0.5",
-        "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-r", "12", "-c:a", "aac", "-shortest", "-pix_fmt", "yuv420p", vid
+        "-vf", "fade=t=in:st=0:d=0.4",
+        "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-r", "12",
+        "-c:a", "aac", "-shortest", "-pix_fmt", "yuv420p", vid
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    if os.path.exists(aud):
-        os.remove(aud)
+
+    for fp in (aud, card_bg):
+        if os.path.exists(fp):
+            os.remove(fp)
     return vid
-#
+
 def upload_yt_short(claim, fact, purl):
     import datetime, requests
     cid = os.environ.get("YT_CLIENT_ID", "").strip()
