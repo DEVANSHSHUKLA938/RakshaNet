@@ -502,16 +502,15 @@ def extract_video_claim(vid_path, speech_text=""):
 
     try:
         import subprocess, time
-        dur = 2.0
-        pr = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", vid_path], capture_output=True, text=True)
-        if pr.returncode == 0 and pr.stdout.strip():
-            dur = max(1.0, float(pr.stdout.strip()))
-        times = [round(dur * 0.25, 2), round(dur * 0.65, 2)] if dur > 2.0 else [0.5]
         frames_b64 = []
         ts = int(time.time())
-        for idx, t in enumerate(times):
+        cmds = [
+            ["ffmpeg", "-y", "-i", vid_path, "-frames:v", "1", "-q:v", "4", f"/tmp/vf_{ts}_0.jpg"],
+            ["ffmpeg", "-y", "-i", vid_path, "-ss", "1", "-frames:v", "1", "-q:v", "4", f"/tmp/vf_{ts}_1.jpg"],
+        ]
+        for idx, cmd in enumerate(cmds):
             out_img = f"/tmp/vf_{ts}_{idx}.jpg"
-            subprocess.run(["ffmpeg", "-y", "-ss", str(t), "-i", vid_path, "-frames:v", "1", "-q:v", "4", out_img], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if os.path.exists(out_img):
                 with open(out_img, "rb") as imf:
                     frames_b64.append(base64.b64encode(imf.read()).decode("utf-8"))
@@ -520,11 +519,13 @@ def extract_video_claim(vid_path, speech_text=""):
             content = [{"type": "text", "text": "Read any on-screen text, news headline, or factual claim in these frames and summarize it in 1 concise English sentence (max 25 words). If there is no factual claim (just music, nature, greetings, or entertainment), reply with exactly: [NO FACTUAL CLAIM]"}]
             for b64 in frames_b64:
                 content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
-            rv = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json={"model": "meta-llama/llama-4-scout-17b-16e-instruct", "messages": [{"role": "user", "content": content}], "temperature": 0.1, "max_tokens": 140}, timeout=25)
-            if rv.status_code == 200:
-                vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
-                if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
-                    return vis_ans
+            for mdl in ("meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"):
+                rv = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json={"model": mdl, "messages": [{"role": "user", "content": content}], "temperature": 0.1, "max_tokens": 140}, timeout=25)
+                if rv.status_code == 200:
+                    vis_ans = rv.json()["choices"][0]["message"]["content"].strip()
+                    if vis_ans and "[NO FACTUAL CLAIM]" not in vis_ans:
+                        return vis_ans
+                    break
     except Exception as e:
         print("Vision fallback error:", e)
     return "[NO FACTUAL CLAIM]"
