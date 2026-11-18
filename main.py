@@ -270,23 +270,52 @@ def deep_verify(claim):
         except Exception:
             pass
 
-    _stop = {"india", "indian", "today", "yesterday", "days", "year", "news", "viral", "video", "claim", "claims", "about", "from", "with", "that", "this", "have", "been", "will"}
-    _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", c_clean) if w.lower() not in _stop]
+    _stop = {"india", "indian", "today", "yesterday", "days", "year", "news", "viral", "video", "claim", "claims", "about", "from", "with", "that", "this", "have", "been", "will", "the", "and", "for", "are", "was"}
+    _keep2 = {"pm", "dm", "sp", "un", "up", "mp", "jk", "it", "ai", "rs"}
+    _raw_toks = _re.findall(r"[a-zA-Z0-9]{2,}", c_clean)
+    _w = [w.lower() for w in _raw_toks if (len(w) >= 3 or w.lower() in _keep2) and w.lower() not in _stop]
     if not _w:
-        _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", c_clean)]
+        _w = [w.lower() for w in _raw_toks if len(w) >= 3]
     def _match_cnt(e):
         tl = (getattr(e, "title", "") or "").lower()
-        return sum(1 for w in _w if w in tl) if _w else 0
+        return sum(1 for w in _w if (w[:5] if len(w) > 5 else w) in tl) if _w else 0
 
-    req_mc = min(2, len(_w)) if _w else 1
-    scored = []
+    cands = []
     for e in all_entries:
         tier, s_name, pub, clean_url = _tier_src(e)
         t_bonus = 30 if tier.startswith("Tier 1") else (20 if tier.startswith("Tier 2") else 5)
         mc = _match_cnt(e)
-        if mc >= req_mc:
-            scored.append((t_bonus + mc * 5, tier, s_name, pub, clean_url, e))
-    scored.sort(key=lambda x: x[0], reverse=True)
+        if mc >= 1:
+            cands.append((t_bonus + mc * 5, tier, s_name, pub, clean_url, e))
+    cands.sort(key=lambda x: x[0], reverse=True)
+    cands = cands[:10]
+
+    scored = []
+    if cands and k:
+        try:
+            nl = chr(10)
+            clist = nl.join(f"{idx}: [{c[1]} | {c[2]}] {getattr(c[5], 'title', '')}" for idx, c in enumerate(cands))
+            rp = (
+                f"Claim: {c_clean[:260]}{nl}{nl}Headlines:{nl}{clist}{nl}{nl}"
+                "Return ONLY the comma-separated index numbers (e.g. 0,2) of headlines that directly confirm, debunk, or report on THIS exact claim (any synonym/wording). "
+                "If NONE are about this exact event, reply: NONE"
+            )
+            rr = _rq.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {k}"},
+                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": rp}], "temperature": 0.0, "max_tokens": 30},
+                timeout=12,
+            )
+            if rr.status_code == 200:
+                ans = (rr.json().get("choices") or [{}])[0].get("message", {}).get("content", "").strip().upper()
+                if "NONE" not in ans:
+                    idxs = [int(x) for x in _re.findall(r"[0-9]+", ans) if int(x) < len(cands)]
+                    scored = [cands[i] for i in idxs]
+        except Exception:
+            pass
+    if not scored and not k:
+        req_mc = min(2, len(_w)) if _w else 1
+        scored = [c for c in cands if _match_cnt(c[5]) >= req_mc]
 
     if scored:
         _, b_tier, b_src, b_pub, b_url, best = scored[0]
