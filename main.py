@@ -208,51 +208,133 @@ async def radar_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def deep_verify(claim):
-    import urllib.parse, re as _re, requests as _rq
-    q1 = " ".join(claim.split()[:10])
-    queries = [q1]
-    k = os.environ.get("GROQ_API_KEY", "")
+    import os, re as _re, urllib.parse, requests as _rq, feedparser
+    c_clean = (claim or "").strip()
+    q1 = " ".join(_re.findall(r"[A-Za-z0-9\u0900-\u0DFF]+", c_clean)[:10]) or c_clean[:100]
+    queries = [(q1, "&when:30d"), (q1, "")]
+    k = os.environ.get("GROQ_API_KEY", "").strip()
     if k:
         try:
-            r = _rq.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": f"Extract 1 concise English search query (max 6 words, no quotes) to fact-check this claim using official/authentic sources: {claim[:220]}"}]}, timeout=12).json()
-            q2 = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-            if q2 and len(q2.split()) <= 8:
-                queries.append(q2)
+            q_prompt = (
+                "Extract 2 concise search queries (max 6 words each, no quotes) to verify this claim on official/primary sources. "
+                "Line 1: English query (include any officer rank/department like ADGPI, PIB, RBI, MoD, DM, SP, ISRO, DGISPR if relevant). "
+                "Line 2: Official site-targeted query (e.g. site:pib.gov.in OR site:rbi.org.in OR site:gov.in OR site:mod.gov.in).\n"
+                f"Claim: {c_clean[:280]}"
+            )
+            r = _rq.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {k}"},
+                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": q_prompt}], "temperature": 0.1, "max_tokens": 80},
+                timeout=12,
+            ).json()
+            lines = [ln.strip(" -1234567890.:") for ln in r.get("choices", [{}])[0].get("message", {}).get("content", "").splitlines() if ln.strip()]
+            for ln in lines[:2]:
+                if ln and len(ln.split()) <= 10:
+                    queries.append((ln, ""))
         except Exception:
             pass
-    auth_domains = ("pib.gov.in", "gov.in", "nic.in", "rbi.org.in", "isro.gov.in", "worldbank.org", "imf.org", "who.int", "un.org", "boomlive.in", "factly.in", "vishvasnews.com", "reuters.com", "apnews.com", "thehindu.com", "indianexpress.com", "ddnews.gov.in", "ptinews.com", "britannica.com", "bbc.com", "aljazeera.com", "theguardian.com")
+
+    t1_domains = ("pib.gov.in", "gov.in", "nic.in", "rbi.org.in", "mod.gov.in", "mha.gov.in", "isro.gov.in", "sebi.gov.in", "eci.gov.in", "who.int", "worldbank.org", "imf.org", "un.org")
+    t2_domains = ("newsonair.gov.in", "akashvani", "ptinews.com", "reuters.com", "apnews.com", "thehindu.com", "indianexpress.com", "boomlive.in", "factly.in", "vishvasnews.com", "altnews.in", "ddnews.gov.in", "bbc.com", "theguardian.com", "britannica.com")
+
+    def _tier_src(entry):
+        lnk = (getattr(entry, "link", "") or "").lower()
+        src_obj = getattr(entry, "source", None)
+        s_href = (getattr(src_obj, "href", "") or "").lower() if src_obj else ""
+        s_title = (getattr(src_obj, "title", "") or "").strip() if src_obj else ""
+        ttl = (getattr(entry, "title", "") or "")
+        if not s_title and " - " in ttl:
+            s_title = ttl.rsplit(" - ", 1)[-1].strip()
+        comb = f"{lnk} {s_href} {s_title.lower()} {ttl.lower()}"
+        if any(d in comb for d in t1_domains):
+            tier = "Tier 1: Official"
+        elif any(d in comb for d in t2_domains):
+            tier = "Tier 2: Wire/IFCN"
+        else:
+            tier = "Tier 3: News"
+        pub = (getattr(entry, "published", "") or "")[:16].strip()
+        clean_url = s_href if s_href.startswith("http") else lnk
+        return tier, (s_title or "News Source"), pub, clean_url
+
     all_entries = []
-    for q in queries[:2]:
+    seen_titles = set()
+    for q_txt, when_p in queries[:4]:
         try:
-            res = _rq.get(f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&when:30d&hl=en-IN&gl=IN&ceid=IN:en", timeout=6).text
-            all_entries.extend(feedparser.parse(res).entries[:5])
+            url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q_txt)}{when_p}&hl=en-IN&gl=IN&ceid=IN:en"
+            res = _rq.get(url, timeout=6).text
+            for e in feedparser.parse(res).entries[:5]:
+                tl = (getattr(e, "title", "") or "").strip()
+                if tl and tl.lower() not in seen_titles:
+                    seen_titles.add(tl.lower())
+                    all_entries.append(e)
         except Exception:
             pass
-    _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", claim)]
-    best = next((e for e in all_entries if any(d in getattr(e, "link", "").lower() or d in getattr(e, "title", "").lower() for d in auth_domains) and (_w and sum(1 for w in _w if w in e.title.lower()) >= 1)), None)
-    if not best:
-        best = next((e for e in all_entries if _w and sum(1 for w in _w if w in e.title.lower()) >= min(2, len(_w))), None)
-    if not best and all_entries:
+
+    _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", c_clean)]
+    def _match_cnt(e):
+        tl = (getattr(e, "title", "") or "").lower()
+        return sum(1 for w in _w if w in tl) if _w else 1
+
+    scored = []
+    for e in all_entries:
+        tier, s_name, pub, clean_url = _tier_src(e)
+        t_bonus = 30 if tier.startswith("Tier 1") else (20 if tier.startswith("Tier 2") else 5)
+        mc = _match_cnt(e)
+        if mc >= 1:
+            scored.append((t_bonus + mc * 5, tier, s_name, pub, clean_url, e))
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    if scored:
+        _, b_tier, b_src, b_pub, b_url, best = scored[0]
+        heads = [f"[{t} | {sn} | {pb}] {getattr(en, 'title', '')}" for _, t, sn, pb, _, en in scored[:4]]
+        fb = f"[{b_tier} — {b_src}] {best.title}"
+        purl = getattr(best, "link", "") or b_url or "https://factcheck.pib.gov.in/"
+    elif all_entries:
         best = all_entries[0]
-    heads = ([best.title] if best else []) + [e.title for e in all_entries if e is not best][:3]
-    fb = best.title if best else "No official confirmation found yet; added to 24h auto-watchlist."
-    purl = best.link if best else "https://factcheck.pib.gov.in/"
+        b_tier, b_src, b_pub, b_url = _tier_src(best)
+        heads = [f"[{b_tier} | {b_src} | {b_pub}] {best.title}"]
+        fb = f"[{b_tier} — {b_src}] {best.title}"
+        purl = getattr(best, "link", "") or b_url or "https://factcheck.pib.gov.in/"
+    else:
+        heads = []
+        fb = "[UNCONFIRMED] No Tier-1/Tier-2 primary confirmation found yet; added to 24h Watchlist."
+        purl = "https://factcheck.pib.gov.in/"
     return heads, fb, purl
-#
+
 def ai_reason(claim, heads, fb):
-    k = os.environ.get("GROQ_API_KEY", "")
+    import os, datetime, hashlib, requests
+    k = os.environ.get("GROQ_API_KEY", "").strip()
     if not k:
         return fb
+    case_id = "RN-" + datetime.datetime.now().strftime("%Y%m") + "-" + hashlib.md5((claim or "").encode("utf-8")).hexdigest()[:4].upper()
     try:
-        import requests
-        ctx = " | ".join(heads) if heads else "No matching headlines found."
-        p = f"Claim: {claim}\nLive Verified Headlines (fetched right now, treat as 100% real): {ctx}\nRules: 1) If input is just a greeting/casual chat (Hi, Hello, Test, Kya haal), start with [CASUAL]. 2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED]. 3) NEVER say the live headlines are fabricated or missing from archives. 4) Judge ONLY the Claim: if headlines cover/confirm it, use [VERIFIED]; if they debunk/contradict it or it is anti-India false data/misattributed foreign clip, use [FAKE] or [MISLEADING]; else [UNCONFIRMED]. 5) Reply in 1-2 crisp factual sentences naming the exact source/agency, key date or figure, and real context; NEVER write vague phrases like recent headlines confirm."
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "user", "content": p}]}, timeout=20).json()
-        txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-        return txt if txt else fb
+        ctx = " || ".join(heads) if heads else "No matching headlines found."
+        p = (
+            f"Claim: {claim}\n"
+            f"Live Verified Sources (with Tier & Date): {ctx}\n\n"
+            "Strict Zero-Guesswork Rules:\n"
+            "1) If input is just casual chat/greeting, start with [CASUAL].\n"
+            "2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED].\n"
+            "3) NEVER guess [FAKE] or [VERIFIED] if Live Verified Sources are empty or inconclusive — use [UNCONFIRMED]. Search empty != FAKE.\n"
+            "4) Check Date Mismatch: if sources prove the event/clip is from an older year/month while claimed as recent/breaking, use [MISLEADING] and state the real date.\n"
+            "5) Role/Officer & Defence Guard: for claims naming any officer/agency (ADGPI, PRO Defence, PIB, RBI, DM, SP, ISRO, DGISPR, etc.), check if Tier-1 official source confirms or debunks; if sensitive defence/border claim lacks Tier-1/Tier-2 proof, use [UNCONFIRMED].\n"
+            "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 2), and key date/figure. End with: "
+            f"(Case: {case_id}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
+        )
+        for mdl in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile"):
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {k}"},
+                json={"model": mdl, "messages": [{"role": "user", "content": p}], "temperature": 0.1, "max_tokens": 220},
+                timeout=20,
+            ).json()
+            txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if txt:
+                return txt
+        return fb
     except Exception:
         return fb
-#
+
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse
     txt = (update.message.text or "").strip()
