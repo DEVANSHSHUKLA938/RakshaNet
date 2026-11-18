@@ -487,24 +487,36 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(p)
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import base64, requests, urllib.parse
+    import base64, requests, urllib.parse, time as _tm
     if not update.message.photo:
         return
-    await update.message.reply_text("[RakshaNet] Scanning image/screenshot with Vision AI...")
+    await update.message.reply_text("[RakshaNet] Scanning image/screenshot with 4-Layer Forensic Vision...")
     os.makedirs("temp", exist_ok=True)
-    p = "temp/tg_photo.jpg"
+    p = f"temp/tg_p_{int(_tm.time()*1000)}_{update.message.photo[-1].file_unique_id}.jpg"
     try:
         f = await context.bot.get_file(update.message.photo[-1].file_id)
         await f.download_to_drive(p)
-        k = os.environ.get("GROQ_API_KEY", "")
+        k = os.environ.get("GROQ_API_KEY", "").strip()
         b64 = base64.b64encode(open(p, "rb").read()).decode()
-        r = requests.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization": f"Bearer {k}"}, json={"model": "qwen/qwen3.8-27b", "messages": [{"role": "user", "content": [{"type": "text", "text": "Extract the main viral claim, notice text, or country/location clues from this image in 1-2 short English sentences."}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]}, timeout=20).json()
+        vis_prompt = (
+            "Analyze this image for fact-checking in 1-2 short English sentences:\n"
+            "1) Extract the main factual/news claim or text overlay.\n"
+            "2) If it is a Govt/Police/RBI/DM notice or letter, check letterhead, official seal, date format, and spelling/grammar anomalies.\n"
+            "3) For location clues: ONLY cite unmistakable physical proof (driving side, left/right steering, 112/100 vs 911, currency, clear foreign flag). "
+            "NEVER guess country from shared languages (Bengali, Punjabi, Tamil, Hindi, Urdu, Nepali) or attire - mark ambiguous location as INDETERMINATE."
+        )
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {k}"},
+            json={"model": "qwen/qwen3.8-27b", "messages": [{"role": "user", "content": [{"type": "text", "text": vis_prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]},
+            timeout=25,
+        ).json()
         claim = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
         if not claim:
             await update.message.reply_text("Could not read clear text/claim from this image.")
             return
-        heads, fb, purl = deep_verify(claim[:220])
-        fact = ai_reason(claim[:220], heads, fb)
+        heads, fb, purl = deep_verify(claim[:280])
+        fact = ai_reason(claim[:280], heads, fb)
         card = make_fact_card(claim[:180], fact)
         x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
         kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
@@ -513,7 +525,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
             try:
                 await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
-                _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
+                _yt_bg(claim[:180], fact, purl)
             except Exception:
                 pass
     except Exception as e:
@@ -521,7 +533,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         if os.path.exists(p):
             os.remove(p)
-#
+
 def _watchlist_loop():
     import time, requests
     while True:
@@ -708,6 +720,67 @@ def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
             os.remove(fp)
     return vid
 
+def _ffprobe_forensics(vid_path):
+    import subprocess
+    flags = []
+    if not vid_path or not os.path.exists(vid_path):
+        return flags
+    try:
+        pr = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", vid_path],
+            capture_output=True, text=True, timeout=10,
+        )
+        raw = (pr.stdout or "").lower()
+        for sig in ("sora", "runway", "kling", "heygen", "elevenlabs", "midjourney", "c2pa", "synthesia"):
+            if sig in raw:
+                flags.append(f"AI-tool metadata tag: {sig}")
+    except Exception:
+        pass
+    return flags
+
+def _record_source_history(source_key, is_fake=False):
+    import sqlite3
+    if not source_key:
+        return 0
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("CREATE TABLE IF NOT EXISTS source_history (src TEXT PRIMARY KEY, total INT DEFAULT 0, fake_cnt INT DEFAULT 0)")
+        row = conn.execute("SELECT total, fake_cnt FROM source_history WHERE src=?", (source_key[:120],)).fetchone()
+        tot, fk = (row[0] + 1, row[1] + (1 if is_fake else 0)) if row else (1, 1 if is_fake else 0)
+        conn.execute("INSERT OR REPLACE INTO source_history (src, total, fake_cnt) VALUES (?, ?, ?)", (source_key[:120], tot, fk))
+        conn.commit()
+        conn.close()
+        return fk
+    except Exception:
+        return 0
+
+def _sync_cloud_memory(mode="save"):
+    import json, sqlite3
+    os.makedirs("data", exist_ok=True)
+    mpath = os.path.join("data", "memory.json")
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("CREATE TABLE IF NOT EXISTS video_hashes (phash TEXT UNIQUE, label TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS source_history (src TEXT PRIMARY KEY, total INT DEFAULT 0, fake_cnt INT DEFAULT 0)")
+        conn.execute("CREATE TABLE IF NOT EXISTS yt_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT, fact TEXT, purl TEXT, priority INT DEFAULT 1)")
+        if mode == "load" and os.path.exists(mpath):
+            d = json.load(open(mpath, "r", encoding="utf-8"))
+            for ph, lb in d.get("video_hashes", []):
+                conn.execute("INSERT OR IGNORE INTO video_hashes (phash, label) VALUES (?, ?)", (ph, lb))
+            for s, t, fk in d.get("source_history", []):
+                conn.execute("INSERT OR IGNORE INTO source_history (src, total, fake_cnt) VALUES (?, ?, ?)", (s, t, fk))
+            conn.commit()
+        else:
+            d = {
+                "video_hashes": conn.execute("SELECT phash, label FROM video_hashes LIMIT 500").fetchall(),
+                "source_history": conn.execute("SELECT src, total, fake_cnt FROM source_history LIMIT 500").fetchall(),
+                "yt_queue": conn.execute("SELECT claim, fact, purl, priority FROM yt_queue LIMIT 100").fetchall(),
+            }
+            json.dump(d, open(mpath, "w", encoding="utf-8"), indent=2)
+        conn.close()
+    except Exception:
+        pass
+
 def upload_yt_short(claim, fact, purl):
     import datetime, requests
     cid = os.environ.get("YT_CLIENT_ID", "").strip()
@@ -721,9 +794,14 @@ def upload_yt_short(claim, fact, purl):
         conn.execute("CREATE TABLE IF NOT EXISTS yt_log (id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT, claim TEXT)")
         today = datetime.date.today().isoformat()
         cnt = conn.execute("SELECT COUNT(*) FROM yt_log WHERE day=?", (today,)).fetchone()[0]
-        if cnt >= 3:
+        if cnt >= 5:
+            conn.execute("CREATE TABLE IF NOT EXISTS yt_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT, fact TEXT, purl TEXT, priority INT DEFAULT 1)")
+            prio = 2 if "[FAKE]" in (fact or "") else 1
+            conn.execute("INSERT INTO yt_queue (claim, fact, purl, priority) VALUES (?, ?, ?, ?)", ((claim or '')[:120], (fact or '')[:500], (purl or '')[:300], prio))
+            conn.commit()
             conn.close()
-            print("[YT] Daily 3-upload limit reached", flush=True)
+            _sync_cloud_memory("save")
+            print("[YT] Daily 5-upload limit reached; queued for next day", flush=True)
             return
         conn.execute("INSERT INTO yt_log (day, claim) VALUES (?, ?)", (today, claim[:120]))
         conn.commit()
