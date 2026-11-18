@@ -350,7 +350,7 @@ def ai_reason(claim, heads, fb, tech_flags=None):
         f"Tier 1F (RakshaNet Technical Forensics): {tf_str}\n\n"
         "Strict Zero-Guesswork Rules:\n"
         "1) If input is just casual chat/greeting, start with [CASUAL].\n"
-        "2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED].\n"
+        "2) Start with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED], followed IMMEDIATELY by your 2-sentence explanation (NEVER output only the tag).\n"
         "3) NEVER guess [FAKE] or [VERIFIED] if Live Verified Sources are empty or inconclusive - use [UNCONFIRMED]. If Tier 1F flags AI-tool metadata, Audio-Video mismatch, or morphing without Tier 1/2 rebuttal, use [UNCONFIRMED - POSSIBLE AI/EDITED MEDIA].\n"
         "4) Check Date Mismatch: if sources prove the event/clip is from an older year/month while claimed as recent/breaking, use [MISLEADING] and state the real date.\n"
         "5) Role/Officer & Defence Guard: for claims naming any officer/agency (ADGPI, PRO Defence, PIB, RBI, DM, SP, ISRO, DGISPR) or @handle, check if Tier-1 official source confirms or if it is a parody/lookalike handle; if sensitive defence/border claim lacks Tier-1/2 proof, use [UNCONFIRMED].\n"
@@ -370,6 +370,8 @@ def ai_reason(claim, heads, fb, tech_flags=None):
                 if ch:
                     txt = (ch[0].get("message") or {}).get("content", "").strip()
                     if txt:
+                        if len(txt) < 25:
+                            txt = f"{txt} {fb} (Case: {case_id} | {ist_now})"
                         return txt
             else:
                 print(f"[AI_REASON] {mdl} HTTP {resp.status_code}: {resp.text[:120]}", flush=True)
