@@ -270,29 +270,27 @@ def deep_verify(claim):
         except Exception:
             pass
 
-    _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", c_clean)]
+    _stop = {"india", "indian", "today", "yesterday", "days", "year", "news", "viral", "video", "claim", "claims", "about", "from", "with", "that", "this", "have", "been", "will"}
+    _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", c_clean) if w.lower() not in _stop]
+    if not _w:
+        _w = [w.lower() for w in _re.findall(r"[a-zA-Z]{4,}", c_clean)]
     def _match_cnt(e):
         tl = (getattr(e, "title", "") or "").lower()
-        return sum(1 for w in _w if w in tl) if _w else 1
+        return sum(1 for w in _w if w in tl) if _w else 0
 
+    req_mc = min(2, len(_w)) if _w else 1
     scored = []
     for e in all_entries:
         tier, s_name, pub, clean_url = _tier_src(e)
         t_bonus = 30 if tier.startswith("Tier 1") else (20 if tier.startswith("Tier 2") else 5)
         mc = _match_cnt(e)
-        if mc >= 1:
+        if mc >= req_mc:
             scored.append((t_bonus + mc * 5, tier, s_name, pub, clean_url, e))
     scored.sort(key=lambda x: x[0], reverse=True)
 
     if scored:
         _, b_tier, b_src, b_pub, b_url, best = scored[0]
         heads = [f"[{t} | {sn} | {pb}] {getattr(en, 'title', '')}" for _, t, sn, pb, _, en in scored[:4]]
-        fb = f"[{b_tier} — {b_src}] {best.title}"
-        purl = getattr(best, "link", "") or b_url or "https://factcheck.pib.gov.in/"
-    elif all_entries:
-        best = all_entries[0]
-        b_tier, b_src, b_pub, b_url = _tier_src(best)
-        heads = [f"[{b_tier} | {b_src} | {b_pub}] {best.title}"]
         fb = f"[{b_tier} — {b_src}] {best.title}"
         purl = getattr(best, "link", "") or b_url or "https://factcheck.pib.gov.in/"
     else:
@@ -341,7 +339,10 @@ def ai_reason(claim, heads, fb, tech_flags=None):
                 print(f"[AI_REASON] {mdl} HTTP {resp.status_code}: {resp.text[:120]}", flush=True)
         except Exception as _ae:
             print(f"[AI_REASON] {mdl} err: {_ae}", flush=True)
-    return fb
+    fl = (fb or "").lower()
+    if heads and any(w in fl for w in ("debunk", "fake", "false", "hoax", "not banned", "misleading")):
+        return f"[FAKE] {fb} (Case: {case_id} | {ist_now})"
+    return f"[UNCONFIRMED] {fb} (Case: {case_id} | {ist_now})"
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse
