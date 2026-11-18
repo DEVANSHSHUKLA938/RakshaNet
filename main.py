@@ -301,39 +301,44 @@ def deep_verify(claim):
         purl = "https://factcheck.pib.gov.in/"
     return heads, fb, purl
 
-def ai_reason(claim, heads, fb):
+def ai_reason(claim, heads, fb, tech_flags=None):
     import os, datetime, hashlib, requests
     k = os.environ.get("GROQ_API_KEY", "").strip()
     if not k:
         return fb
     case_id = "RN-" + datetime.datetime.now().strftime("%Y%m") + "-" + hashlib.md5((claim or "").encode("utf-8")).hexdigest()[:4].upper()
-    try:
-        ctx = " || ".join(heads) if heads else "No matching headlines found."
-        p = (
-            f"Claim: {claim}\n"
-            f"Live Verified Sources (with Tier & Date): {ctx}\n\n"
-            "Strict Zero-Guesswork Rules:\n"
-            "1) If input is just casual chat/greeting, start with [CASUAL].\n"
-            "2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED].\n"
-            "3) NEVER guess [FAKE] or [VERIFIED] if Live Verified Sources are empty or inconclusive — use [UNCONFIRMED]. Search empty != FAKE.\n"
-            "4) Check Date Mismatch: if sources prove the event/clip is from an older year/month while claimed as recent/breaking, use [MISLEADING] and state the real date.\n"
-            "5) Role/Officer & Defence Guard: for claims naming any officer/agency (ADGPI, PRO Defence, PIB, RBI, DM, SP, ISRO, DGISPR, etc.), check if Tier-1 official source confirms or debunks; if sensitive defence/border claim lacks Tier-1/Tier-2 proof, use [UNCONFIRMED].\n"
-            "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 2), and key date/figure. End with: "
-            f"(Case: {case_id}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
-        )
-        for mdl in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile"):
-            r = requests.post(
+    ctx = " || ".join(heads) if heads else "No matching headlines found."
+    tf_str = "; ".join(tech_flags) if tech_flags else "None"
+    p = (
+        f"Claim: {claim}\n"
+        f"Live Verified Sources (with Tier & Date): {ctx}\n"
+        f"Tier 1F (RakshaNet Technical Forensics): {tf_str}\n\n"
+        "Strict Zero-Guesswork Rules:\n"
+        "1) If input is just casual chat/greeting, start with [CASUAL].\n"
+        "2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED].\n"
+        "3) NEVER guess [FAKE] or [VERIFIED] if Live Verified Sources are empty or inconclusive - use [UNCONFIRMED]. If Tier 1F flags AI-tool metadata or recycled pHash clip without Tier 1/2 confirmation, use [UNCONFIRMED] (or [MISLEADING] if old recycled clip).\n"
+        "4) Check Date Mismatch: if sources prove the event/clip is from an older year/month while claimed as recent/breaking, use [MISLEADING] and state the real date.\n"
+        "5) Role/Officer & Defence Guard: for claims naming any officer/agency (ADGPI, PRO Defence, PIB, RBI, DM, SP, ISRO, DGISPR, etc.), check if Tier-1 official source confirms or debunks; if sensitive defence/border claim lacks Tier-1/Tier-2 proof, use [UNCONFIRMED].\n"
+        "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 1F/Tier 2), and key date/figure. End with: "
+        f"(Case: {case_id}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
+    )
+    for mdl in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b"):
+        try:
+            resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {k}"},
                 json={"model": mdl, "messages": [{"role": "user", "content": p}], "temperature": 0.1, "max_tokens": 220},
                 timeout=20,
-            ).json()
-            txt = r.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-            if txt:
-                return txt
-        return fb
-    except Exception:
-        return fb
+            )
+            if resp.status_code == 200:
+                ch = resp.json().get("choices") or []
+                if ch:
+                    txt = (ch[0].get("message") or {}).get("content", "").strip()
+                    if txt:
+                        return txt
+        except Exception:
+            pass
+    return fb
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse
@@ -407,77 +412,61 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"[Error] {e}")
 #async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import urllib.parse
+    import urllib.parse, time as _tm, subprocess, sqlite3
     m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
     if not m:
         return
-    await update.message.reply_text("[RakshaNet] Scanning full forwarded media with Whisper Large-v3...")
+    await update.message.reply_text("[RakshaNet] Scanning full forwarded media with Whisper + 3-Frame Vision + Tier 1F Forensics...")
     os.makedirs("temp", exist_ok=True)
-    f = await context.bot.get_file(m.file_id)
     ext = ".mp4" if (update.message.video or update.message.video_note) else ".ogg"
-    p = f"temp/tg_media{ext}"
-    await f.download_to_drive(p)
+    p = f"temp/tg_{int(_tm.time()*1000)}_{m.file_unique_id}{ext}"
     try:
-        speech = extract_video_claim(p, get_speech(p))
-        if not speech or "[NO FACTUAL CLAIM]" in speech:
-            await update.message.reply_text(f"No factual claim detected in this media (music/entertainment clip). {speech if speech and '(' in speech else ''}")
-            return
-        heads, fb, purl = deep_verify(speech[:220])
-        fact = ai_reason(speech[:220], heads, fb)
-        card = make_fact_card(speech[:180], fact)
-        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
-        kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
-        full_msg = f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}"
-        if len(full_msg) <= 1000:
-            await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
-        else:
-            await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact[:700]}", reply_markup=InlineKeyboardMarkup(kb))
-            await update.message.reply_text(full_msg)
-        pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
-        if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
+        f = await context.bot.get_file(m.file_id)
+        await f.download_to_drive(p)
+        tech_flags = _ffprobe_forensics(p) if ext == ".mp4" else []
+        if ext == ".mp4":
+            f0 = p + "_f0.jpg"
             try:
-                await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact}\nProof: {purl}")
-                _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
+                subprocess.run(["ffmpeg", "-y", "-i", p, "-frames:v", "1", "-q:v", "5", f0], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+                if os.path.exists(f0):
+                    import imagehash
+                    from PIL import Image as _PImg
+                    ph = str(imagehash.phash(_PImg.open(f0).convert("L")))
+                    conn = sqlite3.connect(DB_FILE)
+                    conn.execute("CREATE TABLE IF NOT EXISTS video_hashes (phash TEXT UNIQUE, label TEXT)")
+                    if conn.execute("SELECT 1 FROM video_hashes WHERE phash=?", (ph,)).fetchone():
+                        tech_flags.append("Tier 1F: Recycled clip matched in pHash memory")
+                    else:
+                        conn.execute("INSERT OR IGNORE INTO video_hashes (phash, label) VALUES (?, ?)", (ph, m.file_unique_id[:40]))
+                        conn.commit()
+                    conn.close()
             except Exception:
                 pass
-    except Exception as e:
-        await update.message.reply_text(f"[Media Error] {e}")
-    finally:
-        if os.path.exists(p):
-            os.remove(p)
-#
-async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import urllib.parse
-    m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
-    if not m:
-        return
-    await update.message.reply_text("[RakshaNet] Scanning full forwarded media with Whisper Large-v3...")
-    os.makedirs("temp", exist_ok=True)
-    f = await context.bot.get_file(m.file_id)
-    ext = ".mp4" if (update.message.video or update.message.video_note) else ".ogg"
-    p = f"temp/tg_media{ext}"
-    await f.download_to_drive(p)
-    try:
+            finally:
+                if os.path.exists(f0):
+                    os.remove(f0)
         speech = extract_video_claim(p, get_speech(p))
         if not speech or "[NO FACTUAL CLAIM]" in speech:
             await update.message.reply_text(f"No factual claim detected in this media (music/entertainment clip). {speech if speech and '(' in speech else ''}")
             return
-        heads, fb, purl = deep_verify(speech[:220])
-        fact = ai_reason(speech[:220], heads, fb)
+        heads, fb, purl = deep_verify(speech[:280])
+        fact = ai_reason(speech[:280], heads, fb, tech_flags)
+        _record_source_history("tg_media", "[FAKE]" in fact)
+        _sync_cloud_memory("save")
         card = make_fact_card(speech[:180], fact)
-        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
+        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} #RakshaNet')}"
         kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
-        full_msg = f"Speech: {speech[:200]}\nRef: {fact}\nProof: {purl}"
+        full_msg = f"Claim: {speech[:200]}\nRef: {fact}"
         if len(full_msg) <= 1000:
             await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
         else:
-            await update.message.reply_photo(photo=open(card, "rb"), caption=f"Speech: {speech[:200]}\nRef: {fact[:700]}", reply_markup=InlineKeyboardMarkup(kb))
+            await update.message.reply_photo(photo=open(card, "rb"), caption=f"Claim: {speech[:200]}\nRef: {fact[:700]}", reply_markup=InlineKeyboardMarkup(kb))
             await update.message.reply_text(full_msg)
         pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
         if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
             try:
                 await context.bot.send_photo(chat_id=pub_ch, photo=open(card, "rb"), caption=f"RakshaNet Alert: {fact[:900]}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Read Full Proof", url=purl)]]))
-                _yt_bg(locals().get("txt") or locals().get("claim") or locals().get("speech", "")[:180], fact, purl)
+                _yt_bg(speech[:180], fact, purl)
             except Exception:
                 pass
     except Exception as e:

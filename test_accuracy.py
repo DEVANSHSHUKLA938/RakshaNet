@@ -18,6 +18,8 @@ required = [
     "[UNCONFIRMED]",
     "cybercrime.gov.in",
     "yt_queue",
+    "Tier 1F",
+    "tech_flags",
 ]
 for item in required:
     assert item in src, f"Missing critical component: {item}"
