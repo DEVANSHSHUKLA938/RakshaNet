@@ -654,15 +654,11 @@ def upload_yt_short(claim, fact, purl):
             return
         tag = "[FAKE]" if "[FAKE]" in fact else ("[MISLEADING]" if "[MISLEADING]" in fact else "[VERIFIED]")
         import re as _re
-        title = _re.sub(r"[<>\r\n]+", " ", str(title or "")).strip()
-        if not title:
-            title = "RakshaNet India Fact Check #Shorts"
-        if len(title) > 98:
-            base_t = title.replace("#Shorts", "").replace("#FactCheck", "").strip()[:76].strip()
-            title = f"{base_t} #Shorts #FactCheck"[:98].strip()
+        clean_c = _re.sub(r"[<>\r\n]+", " ", str(claim or "")).strip() or "Fact Check Alert"
+        yt_title = f"{tag} {clean_c[:65].strip()} #Shorts #FactCheck"[:98].strip()
         meta = {
             "snippet": {
-                "title": f"{tag} {claim[:75]} #Shorts #FactCheck",
+                "title": yt_title,
                 "description": f"{fact}\n\nProof: {purl}\n\nVerify: https://t.me/rakshanet_devansh_bot\nDesk: https://t.me/RakshaNet_India\n#Shorts #FactCheck #India",
                 "categoryId": "25"
             },
