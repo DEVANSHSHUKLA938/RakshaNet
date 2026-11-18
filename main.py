@@ -306,6 +306,7 @@ def ai_reason(claim, heads, fb, tech_flags=None):
     k = os.environ.get("GROQ_API_KEY", "").strip()
     if not k:
         return fb
+    ist_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes=30))).strftime("%d %b %Y %H:%M IST")
     case_id = "RN-" + datetime.datetime.now().strftime("%Y%m") + "-" + hashlib.md5((claim or "").encode("utf-8")).hexdigest()[:4].upper()
     ctx = " || ".join(heads) if heads else "No matching headlines found."
     tf_str = "; ".join(tech_flags) if tech_flags else "None"
@@ -316,11 +317,11 @@ def ai_reason(claim, heads, fb, tech_flags=None):
         "Strict Zero-Guesswork Rules:\n"
         "1) If input is just casual chat/greeting, start with [CASUAL].\n"
         "2) Otherwise start strictly with [FAKE], [MISLEADING], [VERIFIED], or [UNCONFIRMED].\n"
-        "3) NEVER guess [FAKE] or [VERIFIED] if Live Verified Sources are empty or inconclusive - use [UNCONFIRMED]. If Tier 1F flags AI-tool metadata or recycled pHash clip without Tier 1/2 confirmation, use [UNCONFIRMED] (or [MISLEADING] if old recycled clip).\n"
+        "3) NEVER guess [FAKE] or [VERIFIED] if Live Verified Sources are empty or inconclusive - use [UNCONFIRMED]. If Tier 1F flags AI-tool metadata, Audio-Video mismatch, or morphing without Tier 1/2 rebuttal, use [UNCONFIRMED - POSSIBLE AI/EDITED MEDIA].\n"
         "4) Check Date Mismatch: if sources prove the event/clip is from an older year/month while claimed as recent/breaking, use [MISLEADING] and state the real date.\n"
-        "5) Role/Officer & Defence Guard: for claims naming any officer/agency (ADGPI, PRO Defence, PIB, RBI, DM, SP, ISRO, DGISPR, etc.), check if Tier-1 official source confirms or debunks; if sensitive defence/border claim lacks Tier-1/Tier-2 proof, use [UNCONFIRMED].\n"
+        "5) Role/Officer & Defence Guard: for claims naming any officer/agency (ADGPI, PRO Defence, PIB, RBI, DM, SP, ISRO, DGISPR) or @handle, check if Tier-1 official source confirms or if it is a parody/lookalike handle; if sensitive defence/border claim lacks Tier-1/2 proof, use [UNCONFIRMED].\n"
         "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 1F/Tier 2), and key date/figure. End with: "
-        f"(Case: {case_id}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
+        f"(Case: {case_id} | {ist_now}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
     )
     for mdl in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b"):
         try:
@@ -336,8 +337,10 @@ def ai_reason(claim, heads, fb, tech_flags=None):
                     txt = (ch[0].get("message") or {}).get("content", "").strip()
                     if txt:
                         return txt
-        except Exception:
-            pass
+            else:
+                print(f"[AI_REASON] {mdl} HTTP {resp.status_code}: {resp.text[:120]}", flush=True)
+        except Exception as _ae:
+            print(f"[AI_REASON] {mdl} err: {_ae}", flush=True)
     return fb
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -368,11 +371,11 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             card = make_fact_card(txt, fact)
             x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
             kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
-            full_msg = f"Verified Ref: {fact}\nProof: {purl}"
+            full_msg = fact
             if len(full_msg) <= 1000:
                 await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
             else:
-                await update.message.reply_photo(photo=open(card, "rb"), caption=f"Verified Ref: {fact[:900]}", reply_markup=InlineKeyboardMarkup(kb))
+                await update.message.reply_photo(photo=open(card, "rb"), caption=fact[:900], reply_markup=InlineKeyboardMarkup(kb))
                 await update.message.reply_text(full_msg)
             pub_ch = os.environ.get("PUBLIC_CHANNEL", "")
             if pub_ch and any(tag in fact for tag in ("[FAKE]", "[MISLEADING]", "[VERIFIED]")):
@@ -745,28 +748,60 @@ def _record_source_history(source_key, is_fake=False):
         return 0
 
 def _sync_cloud_memory(mode="save"):
-    import json, sqlite3
+    import json, sqlite3, base64, requests
     os.makedirs("data", exist_ok=True)
     mpath = os.path.join("data", "memory.json")
+    gh_tok = os.environ.get("GITHUB_TOKEN", "").strip()
+    gh_repo = os.environ.get("GITHUB_REPO", "DEVANSHSHUKLA938/RakshaNet").strip()
+    gh_url = f"https://api.github.com/repos/{gh_repo}/contents/data/memory.json"
+    gh_hdr = {"Authorization": f"token {gh_tok}", "Accept": "application/vnd.github.v3+json"} if gh_tok else {}
     try:
         conn = sqlite3.connect(DB_FILE)
-        conn.execute("CREATE TABLE IF NOT EXISTS video_hashes (phash TEXT UNIQUE, label TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS video_hashes (phash TEXT UNIQUE, label TEXT, first_seen TEXT)")
+        try:
+            conn.execute("ALTER TABLE video_hashes ADD COLUMN first_seen TEXT")
+        except Exception:
+            pass
         conn.execute("CREATE TABLE IF NOT EXISTS source_history (src TEXT PRIMARY KEY, total INT DEFAULT 0, fake_cnt INT DEFAULT 0)")
         conn.execute("CREATE TABLE IF NOT EXISTS yt_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, claim TEXT, fact TEXT, purl TEXT, priority INT DEFAULT 1)")
-        if mode == "load" and os.path.exists(mpath):
-            d = json.load(open(mpath, "r", encoding="utf-8"))
-            for ph, lb in d.get("video_hashes", []):
-                conn.execute("INSERT OR IGNORE INTO video_hashes (phash, label) VALUES (?, ?)", (ph, lb))
-            for s, t, fk in d.get("source_history", []):
-                conn.execute("INSERT OR IGNORE INTO source_history (src, total, fake_cnt) VALUES (?, ?, ?)", (s, t, fk))
-            conn.commit()
+        if mode == "load":
+            if gh_tok:
+                try:
+                    gr = requests.get(gh_url, headers=gh_hdr, timeout=8)
+                    if gr.status_code == 200:
+                        raw = base64.b64decode(gr.json().get("content", "")).decode("utf-8")
+                        open(mpath, "w", encoding="utf-8").write(raw)
+                except Exception:
+                    pass
+            if os.path.exists(mpath):
+                d = json.load(open(mpath, "r", encoding="utf-8"))
+                for row in d.get("video_hashes", []):
+                    ph, lb = row[0], row[1]
+                    fs = row[2] if len(row) > 2 else ""
+                    conn.execute("INSERT OR IGNORE INTO video_hashes (phash, label, first_seen) VALUES (?, ?, ?)", (ph, lb, fs))
+                for s, t, fk in d.get("source_history", []):
+                    conn.execute("INSERT OR IGNORE INTO source_history (src, total, fake_cnt) VALUES (?, ?, ?)", (s, t, fk))
+                conn.commit()
         else:
             d = {
-                "video_hashes": conn.execute("SELECT phash, label FROM video_hashes LIMIT 500").fetchall(),
+                "video_hashes": conn.execute("SELECT phash, label, COALESCE(first_seen, '') FROM video_hashes LIMIT 500").fetchall(),
                 "source_history": conn.execute("SELECT src, total, fake_cnt FROM source_history LIMIT 500").fetchall(),
                 "yt_queue": conn.execute("SELECT claim, fact, purl, priority FROM yt_queue LIMIT 100").fetchall(),
             }
-            json.dump(d, open(mpath, "w", encoding="utf-8"), indent=2)
+            payload = json.dumps(d, indent=2)
+            open(mpath, "w", encoding="utf-8").write(payload)
+            if gh_tok:
+                try:
+                    sha = None
+                    gr = requests.get(gh_url, headers=gh_hdr, timeout=8)
+                    if gr.status_code == 200:
+                        sha = gr.json().get("sha")
+                    body = {"message": "Sync RakshaNet cloud memory", "content": base64.b64encode(payload.encode("utf-8")).decode("ascii")}
+                    if sha:
+                        body["sha"] = sha
+                    requests.put(gh_url, headers=gh_hdr, json=body, timeout=10)
+                except Exception:
+                    pass
         conn.close()
     except Exception:
         pass
@@ -829,8 +864,25 @@ def upload_yt_short(claim, fact, purl):
         print(f"[YT Error] {e}", flush=True)
 #
 def _yt_bg(q, fact, purl):
-    import threading
-    threading.Thread(target=upload_yt_short, args=(q, fact, purl), daemon=True).start()
+    import threading, sqlite3, datetime
+    def _run():
+        upload_yt_short(q, fact, purl)
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            today = datetime.date.today().isoformat()
+            cnt = conn.execute("SELECT COUNT(*) FROM yt_log WHERE day=?", (today,)).fetchone()[0]
+            if cnt < 5:
+                row = conn.execute("SELECT id, claim, fact, purl FROM yt_queue ORDER BY priority DESC, id ASC LIMIT 1").fetchone()
+                if row:
+                    conn.execute("DELETE FROM yt_queue WHERE id=?", (row[0],))
+                    conn.commit()
+                    conn.close()
+                    upload_yt_short(row[1], row[2], row[3])
+                    return
+            conn.close()
+        except Exception:
+            pass
+    threading.Thread(target=_run, daemon=True).start()
 #
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -844,6 +896,7 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text("Ignored. Marked as safe.")
 
 
+_sync_cloud_memory("load")
 print("[RakshaNet Complete] Running with Whisper + Fact-Card + Counter-Video... Press Ctrl+C to stop.")
 app = ApplicationBuilder().token(BOT_TOKEN).write_timeout(30).read_timeout(30).connect_timeout(30).build()
 app.add_handler(CommandHandler("start", start))
