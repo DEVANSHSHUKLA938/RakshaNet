@@ -256,19 +256,26 @@ def deep_verify(claim):
         clean_url = s_href if s_href.startswith("http") else lnk
         return tier, (s_title or "News Source"), pub, clean_url
 
+    import concurrent.futures as _cf
+    rss_urls = [f"https://news.google.com/rss/search?q={urllib.parse.quote(qt)}{wp}&hl=en-IN&gl=IN&ceid=IN:en" for qt, wp in queries[:4]]
+    rss_urls.extend([
+        "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Reg=3",
+        "https://www.rbi.org.in/pressreleases_rss.xml",
+    ])
+    def _fetch_rss(u):
+        try:
+            return feedparser.parse(_rq.get(u, timeout=5).text).entries[:8]
+        except Exception:
+            return []
     all_entries = []
     seen_titles = set()
-    for q_txt, when_p in queries[:4]:
-        try:
-            url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q_txt)}{when_p}&hl=en-IN&gl=IN&ceid=IN:en"
-            res = _rq.get(url, timeout=6).text
-            for e in feedparser.parse(res).entries[:5]:
+    with _cf.ThreadPoolExecutor(max_workers=6) as _ex:
+        for ents in _ex.map(_fetch_rss, rss_urls):
+            for e in ents:
                 tl = (getattr(e, "title", "") or "").strip()
                 if tl and tl.lower() not in seen_titles:
                     seen_titles.add(tl.lower())
                     all_entries.append(e)
-        except Exception:
-            pass
 
     _stop = {"india", "indian", "today", "yesterday", "days", "year", "news", "viral", "video", "claim", "claims", "about", "from", "with", "that", "this", "have", "been", "will", "the", "and", "for", "are", "was"}
     _keep2 = {"pm", "dm", "sp", "un", "up", "mp", "jk", "it", "ai", "rs"}
@@ -297,7 +304,7 @@ def deep_verify(claim):
             clist = nl.join(f"{idx}: [{c[1]} | {c[2]}] {getattr(c[5], 'title', '')}" for idx, c in enumerate(cands))
             rp = (
                 f"Claim: {c_clean[:260]}{nl}{nl}Headlines:{nl}{clist}{nl}{nl}"
-                "Return ONLY the comma-separated index numbers (e.g. 0,2) of headlines that directly confirm, debunk, or report on THIS exact claim (any synonym/wording). "
+                "Return ONLY the comma-separated index numbers (e.g. 0,2) of headlines that confirm, debunk, or report on the CORE claim (ignore relative words like yesterday/today; match fact-checks on the same topic). "
                 "If NONE are about this exact event, reply: NONE"
             )
             rr = _rq.post(
@@ -313,9 +320,9 @@ def deep_verify(claim):
                     scored = [cands[i] for i in idxs]
         except Exception:
             pass
-    if not scored and not k:
+    if not scored:
         req_mc = min(2, len(_w)) if _w else 1
-        scored = [c for c in cands if _match_cnt(c[5]) >= req_mc]
+        scored = [c for c in cands if (c[1].startswith("Tier 1") or c[1].startswith("Tier 2")) and _match_cnt(c[5]) >= req_mc]
 
     if scored:
         _, b_tier, b_src, b_pub, b_url, best = scored[0]
