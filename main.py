@@ -411,7 +411,8 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     pass
     except Exception as e:
         await update.message.reply_text(f"[Error] {e}")
-#async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import urllib.parse, time as _tm, subprocess, sqlite3
     m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
     if not m:
