@@ -89,14 +89,18 @@ def get_speech(vid_path):
     return " ".join(parts).strip()
 
 def make_fact_card(claim, fact):
-    import re as _rc, time as _tc
-    c_raw = _dual_lang_query(claim) if any(ord(c) > 127 for c in str(claim).replace("₹", "")) else str(claim)
-    f_raw = _dual_lang_query(fact) if any(ord(c) > 127 for c in str(fact).replace("₹", "")) else str(fact)
-    c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", c_raw.replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
-    f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", f_raw.replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
-    if len(c_clean) < 8:
-        c_clean = _dual_lang_query(claim).encode("ascii", "ignore").decode().strip()[:220] or "Regional Language Claim"
-    fu = f_clean.upper()
+    import os as _oc, re as _rc, time as _tc
+    has_hi = any("\u0900" <= c <= "\u097f" for c in (str(claim) + str(fact)))
+    use_hi = has_hi and _oc.path.exists("fonts/hindi.ttf") and _oc.path.getsize("fonts/hindi.ttf") > 50000
+    if use_hi:
+        c_clean = _rc.sub(r"\s+", " ", str(claim).replace("₹", "Rs.")).strip()
+        f_clean = _rc.sub(r"\s+", " ", str(fact).replace("₹", "Rs.")).strip()
+    else:
+        c_raw = _dual_lang_query(claim) if any(ord(c) > 127 for c in str(claim).replace("₹", "")) else str(claim)
+        f_raw = _dual_lang_query(fact) if any(ord(c) > 127 for c in str(fact).replace("₹", "")) else str(fact)
+        c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", c_raw.replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+        f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", f_raw.replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+    fu = (str(fact) + " " + f_clean).upper()
     if "[FAKE]" in fu:
         col, badge = (200, 30, 30), "VERDICT: FAKE"
     elif "[VERIFIED]" in fu:
@@ -111,7 +115,8 @@ def make_fact_card(claim, fact):
     d = ImageDraw.Draw(img)
     d.rectangle([(0, 0), (1080, 110)], fill=(20, 20, 20))
     d.rectangle([(0, 110), (1080, 124)], fill=col)
-    f_h, f_b, f_t = ImageFont.load_default(size=40), ImageFont.load_default(size=30), ImageFont.load_default(size=24)
+    f_h, f_t = ImageFont.load_default(size=40), ImageFont.load_default(size=24)
+    f_b = ImageFont.truetype("fonts/hindi.ttf", 28) if use_hi else ImageFont.load_default(size=30)
     d.text((50, 32), "RAKSHANET | FACT & NARRATIVE CHECK", fill=(255, 255, 255), font=f_h)
     d.rectangle([(50, 150), (470, 205)], fill=col)
     d.text((68, 164), badge, fill=(255, 255, 255), font=f_t)
@@ -121,7 +126,7 @@ def make_fact_card(claim, fact):
     d.text((50, 535), "VERIFIED REFERENCE:", fill=(20, 100, 40), font=f_t)
     d.text((50, 575), textwrap.fill(f_clean[:320], width=42), fill=(20, 20, 20), font=f_b)
     d.text((50, 995), "RakshaNet Open-Source Desk | Verify Before Sharing", fill=(110, 110, 110), font=f_t)
-    os.makedirs("output", exist_ok=True)
+    _oc.makedirs("output", exist_ok=True)
     out = f"output/fact_card_{int(_tc.time()*1000)}.png"
     img.save(out)
     return out
