@@ -887,94 +887,79 @@ def extract_video_claim(vid_path, speech_text=""):
 def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
     if c is None:
         claim, fact = a, b
-        verdict = "FAKE" if "[FAKE]" in (fact or "") else ("MISLEADING" if "[MISLEADING]" in (fact or "") else ("VERIFIED" if "[VERIFIED]" in (fact or "") else "ALERT"))
+        fu = (fact or "").upper()
+        verdict = "FAKE" if "[FAKE]" in fu else ("CYBER THREAT" if "[CYBER" in fu else ("MISLEADING" if "[MISLEADING]" in fu else ("VERIFIED" if "[VERIFIED]" in fu else "ALERT")))
     else:
         verdict, claim, fact = a, b, c
     import os, time, asyncio, subprocess, textwrap, edge_tts
     from PIL import Image, ImageDraw, ImageFont
-
     ts = int(time.time())
-    card_bg = f"/tmp/short_bg_{ts}.png"
     aud = f"/tmp/short_aud_{ts}.mp3"
     vid = out_vid if out_vid else f"/tmp/raksha_short_{ts}.mp4"
-
     v_up = (verdict or "ALERT").upper()
     if "FAKE" in v_up or "FALSE" in v_up:
-        badge_col = (195, 30, 30)
-        badge_txt = "FAKE NEWS ALERT"
+        bcol, btxt = (195, 30, 30), "FAKE NEWS ALERT"
+    elif "CYBER" in v_up:
+        bcol, btxt = (120, 40, 165), "CYBER THREAT ALERT"
     elif "MISLEADING" in v_up:
-        badge_col = (210, 115, 0)
-        badge_txt = "MISLEADING CLAIM"
+        bcol, btxt = (210, 115, 0), "MISLEADING CLAIM"
     elif "TRUE" in v_up or "VERIFIED" in v_up:
-        badge_col = (20, 130, 55)
-        badge_txt = "VERIFIED FACT"
+        bcol, btxt = (20, 130, 55), "VERIFIED FACT"
     else:
-        badge_col = (35, 90, 175)
-        badge_txt = "FACT CHECK UPDATE"
-
-    img = Image.new("RGB", (720, 1280), (14, 22, 42))
-    d = ImageDraw.Draw(img)
-
-    def _font(sz, bold=False):
-        paths = [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-        ]
-        for fp in paths:
+        bcol, btxt = (35, 90, 175), "FACT CHECK UPDATE"
+    def _fnt(sz, bold=False):
+        ps = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/System/Library/Fonts/Helvetica.ttc"]
+        for fp in ps:
             if os.path.exists(fp):
                 try:
                     return ImageFont.truetype(fp, sz)
                 except Exception:
                     pass
         return ImageFont.load_default()
-
-    f_hdr = _font(30, bold=True)
-    f_bdg = _font(32, bold=True)
-    f_s = _font(22, bold=True)
-    f_b = _font(28, bold=True)
-    f_f = _font(25, bold=False)
-    f_ft = _font(20, bold=False)
-
-    d.rectangle([(0, 0), (720, 110)], fill=(10, 16, 32))
-    d.text((40, 38), "RAKSHANET INDIA  •  FACT CHECK", fill=(255, 255, 255), font=f_hdr)
-    d.rectangle([(0, 110), (720, 116)], fill=(245, 165, 35))
-
-    d.rounded_rectangle([(45, 148), (675, 224)], radius=14, fill=badge_col)
-    d.text((70, 168), badge_txt, fill=(255, 255, 255), font=f_bdg)
-
-    d.rounded_rectangle([(35, 250), (685, 1130)], radius=22, fill=(248, 250, 253))
-    c_txt = (claim or "").replace("₹", "Rs.").strip()
-    f_txt = (fact or "").replace("₹", "Rs.").strip()
-
-    d.text((55, 275), "VIRAL CLAIM:", fill=(185, 28, 28), font=f_s)
-    d.text((55, 315), textwrap.fill(c_txt[:180], width=34), fill=(20, 20, 20), font=f_b)
-    d.line([(55, 535), (665, 535)], fill=(220, 220, 220), width=3)
-
-    d.text((55, 565), "VERIFIED REALITY & PROOF:", fill=(15, 110, 45), font=f_s)
-    f_wrap = textwrap.fill(f_txt[:310], width=34)
-    d.text((55, 610), f_wrap, fill=(30, 35, 45), font=f_f)
-
-    d.rectangle([(0, 1165), (720, 1280)], fill=(10, 16, 32))
-    d.text((45, 1190), "Verify any news: t.me/rakshanet_devansh_bot", fill=(220, 230, 245), font=f_ft)
-    d.text((45, 1225), "Live Feed: t.me/RakshaNet_India", fill=(245, 185, 65), font=f_ft)
-    img.save(card_bg)
-
-    narration = f"{badge_txt}. Claim: {c_txt[:160]}. Reality: {f_txt[:260]}. Verify news anytime on RakshaNet."
+    c_en = _dual_lang_query(claim) if any(ord(x) > 127 for x in str(claim).replace("₹", "")) else str(claim)
+    f_en = _dual_lang_query(fact) if any(ord(x) > 127 for x in str(fact).replace("₹", "")) else str(fact)
+    c_txt = c_en.replace("₹", "Rs.").encode("ascii", "ignore").decode().strip()[:220]
+    f_txt = f_en.replace("₹", "Rs.").encode("ascii", "ignore").decode().strip()[:280]
+    slides = [
+        ("STEP 1: VIRAL CLAIM", c_txt, bcol),
+        ("STEP 2: OFFICIAL PROOF", f_txt, (20, 130, 55)),
+        ("STEP 3: STAY SAFE", "Verify before forwarding!\nTelegram: @RakshaNet_India\nCyber Fraud Helpline: 1930 | cybercrime.gov.in", (35, 90, 175)),
+    ]
+    s_paths = []
+    for idx, (ttl, body, acol) in enumerate(slides):
+        im = Image.new("RGB", (720, 1280), (14, 22, 42))
+        d = ImageDraw.Draw(im)
+        d.rectangle([(0, 0), (720, 110)], fill=(10, 15, 30))
+        d.text((40, 35), "RAKSHANET INDIA | OSINT DESK", fill=(255, 255, 255), font=_fnt(28, True))
+        d.rectangle([(40, 150), (680, 225)], fill=bcol)
+        d.text((65, 170), btxt, fill=(255, 255, 255), font=_fnt(34, True))
+        d.rectangle([(40, 270), (680, 330)], fill=acol)
+        d.text((60, 285), ttl, fill=(255, 255, 255), font=_fnt(26, True))
+        d.text((45, 380), textwrap.fill(body, width=30), fill=(240, 244, 255), font=_fnt(32, False))
+        d.text((45, 1180), "Powered by RakshaNet Autonomous AI", fill=(150, 165, 195), font=_fnt(22, False))
+        sp = f"/tmp/short_s{idx}_{ts}.png"
+        im.save(sp)
+        s_paths.append(sp)
+    is_hi = any("\u0900" <= ch <= "\u097f" for ch in str(claim))
+    voice = "hi-IN-SwaraNeural" if is_hi else "en-IN-PrabhatNeural"
+    narration = f"{btxt}. {c_txt[:140]}. {f_txt[:180]}. Verify before sharing on RakshaNet India."
     async def _tts():
-        comm = edge_tts.Communicate(narration, "en-IN-NeerjaNeural")
-        await comm.save(aud)
+        await edge_tts.Communicate(narration, voice).save(aud)
     asyncio.run(_tts())
-
-    subprocess.run([
-        "ffmpeg", "-y", "-loop", "1", "-framerate", "2", "-i", card_bg, "-i", aud,
-        "-vf", "fade=t=in:st=0:d=0.4",
-        "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-r", "12",
-        "-c:a", "aac", "-shortest", "-pix_fmt", "yuv420p", vid
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-
-    for fp in (aud, card_bg):
-        if os.path.exists(fp):
-            os.remove(fp)
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1", "-t", "5", "-i", s_paths[0],
+        "-loop", "1", "-t", "7", "-i", s_paths[1],
+        "-loop", "1", "-t", "4", "-i", s_paths[2],
+        "-i", aud,
+        "-filter_complex", "[0:v][1:v][2:v]concat=n=3:v=1:a=0,scale=720:1280,format=yuv420p[v]",
+        "-map", "[v]", "-map", "3:a", "-c:v", "libx264", "-preset", "ultrafast",
+        "-c:a", "aac", "-shortest", vid,
+    ]
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    for sp in s_paths + [aud]:
+        if os.path.exists(sp):
+            os.remove(sp)
     return vid
 
 def _ffprobe_forensics(vid_path):
@@ -1161,6 +1146,35 @@ async def appeals_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         await update.message.reply_text("No appeals logged yet.")
 
+def _daily_roundup_loop():
+    import datetime as _dt, json as _jr, os as _or, time as _tr
+    last_day = ""
+    while True:
+        try:
+            now_ist = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=5, minutes=30)))
+            dkey = now_ist.strftime("%Y-%m-%d")
+            if now_ist.hour == 21 and dkey != last_day and _or.path.exists("data/ledger.json"):
+                rows = _jr.load(open("data/ledger.json"))[:3]
+                if rows:
+                    last_day = dkey
+                    summary = " | ".join(f"{r.get('verdict','')}: {r.get('summary','')[:70]}" for r in rows)
+                    v = build_pro_short("ALERT", f"Daily Fact-Check Round-Up ({dkey})", summary)
+                    upload_yt_short(v, f"RakshaNet Daily Fact-Check Round-Up | {dkey} #Shorts", summary)
+        except Exception:
+            pass
+        _tr.sleep(300)
+
+async def roundup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import json as _jr, os as _or
+    rows = _jr.load(open("data/ledger.json"))[:3] if _or.path.exists("data/ledger.json") else []
+    if not rows:
+        await update.message.reply_text("No verified cases in today's ledger yet.")
+        return
+    await update.message.reply_text("Building Daily Round-Up Short...")
+    summary = " | ".join(f"{r.get('verdict','')}: {r.get('summary','')[:70]}" for r in rows)
+    v = build_pro_short("ALERT", "Daily Fact-Check Round-Up", summary)
+    await update.message.reply_video(video=open(v, "rb"), caption="RakshaNet Daily Round-Up Short")
+
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1196,12 +1210,14 @@ app = ApplicationBuilder().token(BOT_TOKEN).write_timeout(30).read_timeout(30).c
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
 app.add_handler(CommandHandler("appeals", appeals_cmd))
+app.add_handler(CommandHandler("roundup", roundup_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
 app.add_handler(MessageHandler(filters.VIDEO | filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE, handle_media))
 app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 app.add_handler(CallbackQueryHandler(button_tap))
 import threading as _wt
 _wt.Thread(target=_watchlist_loop, daemon=True).start()
+_wt.Thread(target=_daily_roundup_loop, daemon=True).start()
 
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
