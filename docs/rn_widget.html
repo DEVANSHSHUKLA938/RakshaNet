@@ -1,3 +1,14 @@
+<div id="rn-welcome" onclick="this.remove()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);backdrop-filter:blur(8px);align-items:center;justify-content:center;cursor:pointer;">
+  <canvas id="rn-confetti" style="position:fixed;inset:0;pointer-events:none;"></canvas>
+  <div style="position:relative;background:#ffffff;border-radius:18px;padding:34px 40px;max-width:460px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.22);border-top:5px solid #1e3a5f;font-family:system-ui,sans-serif;">
+    <div style="font-size:48px;line-height:1;margin-bottom:10px;">&#128591;</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#0f766e;">Namaste &bull; Welcome to</div>
+    <h1 style="margin:6px 0 6px;font-size:30px;color:#1e3a5f;letter-spacing:-0.02em;">RakshaNet</h1>
+    <div style="font-size:17px;font-weight:700;color:#b45309;margin-bottom:12px;">Aapka Cyber Sathi</div>
+    <div style="font-size:13px;color:#475569;margin-bottom:16px;">"Satyameva Jayate &mdash; Verify before you share for a safer Digital India."</div>
+    <div style="font-size:12.5px;color:#1e3a5f;font-weight:700;">Founder &amp; Creator: Devansh Shukla</div>
+  </div>
+</div>
 <section id="rn-live-desk" style="max-width:1060px;margin:18px auto;padding:22px 24px;border-radius:8px;background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;border-top:4px solid #1e3a5f;box-shadow:0 2px 8px rgba(0,0,0,0.05);font-family:system-ui,sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
     <div>
@@ -11,6 +22,13 @@
     <span><strong>Coverage:</strong> English, Hindi &amp; Regional India</span>
     <span><strong>Alerts:</strong> @RakshaNet_India &amp; YouTube Shorts</span>
   </div>
+  <div id="rn-quote" style="background:linear-gradient(90deg,#eff6ff,#f0fdf4);border-left:4px solid #f97316;padding:9px 14px;border-radius:6px;font-size:13px;font-style:italic;color:#1e3a5f;margin-bottom:12px;font-weight:600;">"Satyameva Jayate — Verify before you share. Every verified fact strengthens a safer Digital India."</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;">
+    <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Total Visitors</div><div id="rn-st-vis" style="font-size:20px;font-weight:800;color:#1e3a5f;">--</div></div>
+    <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Claims Verified</div><div id="rn-st-tot" style="font-size:20px;font-weight:800;color:#0f766e;">--</div></div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#b91c1c;font-weight:700;text-transform:uppercase;">Fake Caught</div><div id="rn-st-fak" style="font-size:20px;font-weight:800;color:#dc2626;">--</div></div>
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#7e22ce;font-weight:700;text-transform:uppercase;">Cyber Threats</div><div id="rn-st-cyb" style="font-size:20px;font-weight:800;color:#7e22ce;">--</div></div>
+  </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
     <input id="rn-q" type="text" placeholder="Paste any viral claim, YouTube/video link, or suspicious URL..." style="flex:1;min-width:240px;padding:11px 14px;border-radius:6px;border:1px solid #94a3b8;background:#ffffff;color:#0f172a;font-size:14px;">
     <button onclick="rnVerify()" style="padding:11px 22px;border-radius:6px;border:none;background:#1e3a5f;color:#ffffff;font-weight:700;cursor:pointer;">Verify Now</button>
@@ -19,6 +37,14 @@
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px;">
     <h3 style="margin:0;color:#1e3a5f;font-size:15px;">Public Audit Ledger (Verified Cases)</h3>
     <span style="font-size:12px;color:#b91c1c;font-weight:600;">Cyber Fraud Helpline: <a href="https://cybercrime.gov.in/" target="_blank" style="color:#1e3a5f;">cybercrime.gov.in</a> | <a href="tel:1930" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#1e3a5f" style="vertical-align:middle;"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg><span style="color:#b91c1c;font-weight:700;">Call:</span><span style="color:#1e3a5f;font-weight:800;text-decoration:underline;">1930 &rarr;</span></a></span>
+  </div>
+  <div id="rn-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    <button onclick="rnSetCat('ALL')" style="padding:5px 11px;border-radius:99px;border:1px solid #1e3a5f;background:#1e3a5f;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">All</button>
+    <button onclick="rnSetCat('FAKE')" style="padding:5px 11px;border-radius:99px;border:1px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;">Fake News</button>
+    <button onclick="rnSetCat('CYBER')" style="padding:5px 11px;border-radius:99px;border:1px solid #7e22ce;background:#fff;color:#7e22ce;font-size:12px;font-weight:700;cursor:pointer;">Cyber Threats</button>
+    <button onclick="rnSetCat('VERIFIED')" style="padding:5px 11px;border-radius:99px;border:1px solid #15803d;background:#fff;color:#15803d;font-size:12px;font-weight:700;cursor:pointer;">Verified Facts</button>
+    <button onclick="rnSetCat('MISLEADING')" style="padding:5px 11px;border-radius:99px;border:1px solid #d97706;background:#fff;color:#d97706;font-size:12px;font-weight:700;cursor:pointer;">Misleading</button>
+    <button onclick="rnSetCat('VIDEO')" style="padding:5px 11px;border-radius:99px;border:1px solid #0284c7;background:#fff;color:#0284c7;font-size:12px;font-weight:700;cursor:pointer;">Video Checks</button>
   </div>
   <input id="rn-filter" oninput="rnRenderLedger()" type="text" placeholder="Search by Case ID (RN-...) or keyword..." style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-size:13px;margin-bottom:10px;">
   <div id="rn-ledger" style="max-height:240px;overflow-y:auto;font-size:13px;color:#1e293b;border:1px solid #e2e8f0;border-radius:6px;background:#ffffff;">Loading live ledger...</div>
@@ -60,6 +86,58 @@ async function rnVerify() {
     box.style.borderLeftColor = col;
     box.innerHTML = txt.replace(/</g, "&lt;") + (d.proof ? ' <br><a href="' + d.proof + '" target="_blank" style="color:#1e3a5f;font-weight:700;">Read Official Proof &rarr;</a>' : "");
     rnLoadLedger();
+let _rnCat = "ALL";
+function rnSetCat(c) { _rnCat = c; rnRenderLedger(); }
+const _rnQuotes = [
+  '"Satyameva Jayate — Verify before you share. Every verified fact strengthens a safer Digital India."',
+  '"A vigilant citizen is the strongest shield of Bharat — verify claims with RakshaNet."',
+  '"Rumors travel fast, but verified truth protects the nation — RakshaNet, Aapka Cyber Sathi."'
+];
+let _qi = 0;
+setInterval(() => { _qi = (_qi + 1) % _rnQuotes.length; const q = document.getElementById("rn-quote"); if (q) q.textContent = _rnQuotes[_qi]; }, 7000);
+async function rnLoadStats() {
+  const isNew = !sessionStorage.getItem("rn_visited");
+  if (isNew) sessionStorage.setItem("rn_visited", "1");
+  try {
+    const r = await fetch(RN_API + "/api/stats" + (isNew ? "?hit=1&t=" + Date.now() : ""));
+    const s = await r.json();
+    document.getElementById("rn-st-vis").textContent = s.visits || 1;
+    document.getElementById("rn-st-tot").textContent = s.total_verified || 0;
+    document.getElementById("rn-st-fak").textContent = (s.cats && s.cats.fake) || 0;
+    document.getElementById("rn-st-cyb").textContent = (s.cats && s.cats.cyber) || 0;
+  } catch (e) {}
+}
+function rnRunWelcome() {
+  if (localStorage.getItem("rn_welcomed")) return;
+  localStorage.setItem("rn_welcomed", "1");
+  const ov = document.getElementById("rn-welcome");
+  const cv = document.getElementById("rn-confetti");
+  if (!ov || !cv) return;
+  ov.style.display = "flex";
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext("2d");
+  const cols = ["#f97316", "#ffffff", "#15803d", "#1e3a5f", "#d97706"];
+  const ps = Array.from({length: 90}, (_, i) => ({
+    x: i % 2 === 0 ? 0 : cv.width, y: cv.height * (0.2 + Math.random() * 0.5),
+    vx: (i % 2 === 0 ? 1 : -1) * (4 + Math.random() * 7), vy: -6 - Math.random() * 6,
+    sz: 5 + Math.random() * 6, c: cols[i % cols.length], r: Math.random() * 6
+  }));
+  let frames = 0;
+  function tick() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.r += 0.12;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.sz/2, -p.sz/2, p.sz, p.sz*0.6); ctx.restore();
+    }
+    if (++frames < 160 && document.getElementById("rn-welcome")) requestAnimationFrame(tick);
+  }
+  tick();
+  setTimeout(() => { const el = document.getElementById("rn-welcome"); if (el) el.remove(); }, 3600);
+}
+rnLoadStats();
+rnRunWelcome();
+
   } catch (e) {
     box.innerHTML = "Server waking up (Render Free Tier) — please click Verify Now again in 20 seconds.";
   }
@@ -67,7 +145,7 @@ async function rnVerify() {
 function rnRenderLedger() {
   const f = (document.getElementById("rn-filter").value || "").toLowerCase();
   const el = document.getElementById("rn-ledger");
-  const list = _rnRows.filter(x => (x.summary + " " + x.case_id + " " + x.verdict).toLowerCase().includes(f));
+  const list = _rnRows.filter(x => { const s = (x.summary + " " + x.case_id + " " + x.verdict).toUpperCase(); const catOk = _rnCat==="ALL" || (_rnCat==="VIDEO" ? (s.includes("FORENSIC")||s.includes("YOUTUBE")) : s.includes(_rnCat)); return catOk && s.toLowerCase().includes(f); });
   if (!list.length) { el.innerHTML = "<div style='padding:10px;color:#64748b;'>No verified cases recorded yet.</div>"; return; }
   el.innerHTML = list.map(x => `<div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;"><strong>${(x.verdict||"").replace(/</g,"&lt;")}</strong> &mdash; ${(x.summary||"").replace(/</g,"&lt;")} ${x.proof ? `<a href="${x.proof}" target="_blank" style="color:#1e3a5f;font-weight:600;">[Proof]</a>` : ""}</div>`).join("");
 }

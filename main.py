@@ -518,6 +518,36 @@ def _sb_keepalive_loop():
         _sb_req("GET", "ledger", query="?select=id&limit=1")
         _tsb.sleep(43200)
 
+def _get_site_stats(hit=False):
+    import json as _js, os as _os, requests as _rq, time as _ts
+    su = _os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    sk = _os.environ.get("SUPABASE_KEY", "").strip()
+    if hit and su and sk:
+        _sb_req("POST", "campaign_log", {"sig": "__site_visit__", "ts": int(_ts.time())})
+    visits = 1
+    if su and sk:
+        try:
+            r = _rq.get(
+                f"{su}/rest/v1/campaign_log?sig=eq.__site_visit__&select=id",
+                headers={"apikey": sk, "Authorization": f"Bearer {sk}", "Prefer": "count=exact", "Range": "0-0"},
+                timeout=4,
+            )
+            cr = r.headers.get("Content-Range", "")
+            if "/" in cr and cr.split("/")[-1].isdigit():
+                visits = max(1, int(cr.split("/")[-1]))
+        except Exception:
+            pass
+    rows = _sb_req("GET", "ledger", query="?order=ts.desc&limit=200") or (_js.load(open("data/ledger.json")) if _os.path.exists("data/ledger.json") else [])
+    cats = {"fake": 0, "cyber": 0, "verified": 0, "misleading": 0, "video": 0}
+    for row in rows:
+        v = (str(row.get("verdict", "")) + " " + str(row.get("summary", ""))).upper()
+        if "CYBER" in v: cats["cyber"] += 1
+        elif "FAKE" in v: cats["fake"] += 1
+        elif "MISLEADING" in v: cats["misleading"] += 1
+        elif "VERIFIED" in v or "SAFE" in v: cats["verified"] += 1
+        if "FORENSIC SCORE" in v or "YOUTUBE" in v: cats["video"] += 1
+    return {"visits": visits, "total_verified": len(rows), "cats": cats}
+
 def deep_verify(claim):
     claim = _dual_lang_query(claim)
     import os, re as _re, urllib.parse, requests as _rq, feedparser
@@ -1393,6 +1423,8 @@ if os.environ.get("PORT"):
             self.wfile.write(data)
         def do_GET(self):
             import json as _jh, os as _oh, urllib.parse as _up
+            if self.path.startswith("/api/stats"):
+                return self._send_json(_get_site_stats(hit=("hit=1" in self.path)))
             if self.path.startswith("/api/ledger"):
                 rows = _sb_req("GET", "ledger", query="?order=ts.desc&limit=50") or (_jh.load(open("data/ledger.json")) if _oh.path.exists("data/ledger.json") else [])
                 return self._send_json(rows[:50])
