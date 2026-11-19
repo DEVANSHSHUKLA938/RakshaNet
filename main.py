@@ -12,7 +12,7 @@ class _GroqWhisper:
     def init(self, *a, **kw): pass
     def transcribe(self, path, *a, **kw):
         import requests
-        r = requests.post(
+        r = _rq.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {os.environ.get('GROQ_API_KEY', '')}"},
             files={"file": open(path, "rb")},
@@ -303,6 +303,7 @@ def _dual_lang_query(q):
     if not has_non_ascii:
         return s
     try:
+        import requests as _rq
         gk = os.environ.get("GROQ_API_KEY", "").strip()
         if not gk:
             return s
@@ -316,7 +317,7 @@ def _dual_lang_query(q):
             },
             timeout=12,
         )
-        en = r.json()["choices"][0]["message"]["content"].strip()
+        en = r.json()["choices"][0]["message"]["content"].strip().strip("\"' ")
         if en and len(en) > 3:
             return en
     except Exception:
@@ -445,6 +446,13 @@ def deep_verify(claim):
         tl = (getattr(e, "title", "") or "").lower()
         return sum(1 for w in _w if (w[:5] if len(w) > 5 else w) in tl) if _w else 0
 
+    _st_hl = _detect_state_hl(c_clean)
+    for _hl in (['hi'] + ([_st_hl] if _st_hl and _st_hl != 'hi' else [])):
+        try:
+            _eu = f'https://news.google.com/rss/search?q={urllib.parse.quote(" ".join(c_clean.split()[:8]))}&hl={_hl}&gl=IN&ceid=IN:{_hl}'
+            all_entries.extend(feedparser.parse(_eu).entries[:6])
+        except Exception:
+            pass
     cands = []
     for e in all_entries:
         tier, s_name, pub, clean_url = _tier_src(e)
