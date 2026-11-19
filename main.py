@@ -152,7 +152,9 @@ def build_counter(url, score, reason, dur=20):
 def analyze_video(url):
     import urllib.parse, imagehash
     os.makedirs("temp", exist_ok=True)
-    vid, aud = "temp/main_vid.mp4", "temp/full_aud.mp3"
+    import glob as _gl, re as _rv, time as _tv
+    _tid = int(_tv.time() * 1000)
+    vid, aud = f"temp/vid_{_tid}.mp4", f"temp/aud_{_tid}.mp3"
     title = url
     try:
         import requests
@@ -160,11 +162,31 @@ def analyze_video(url):
         title = oe.get("title", url)
     except Exception:
         pass
-    aud_ok = subprocess.run(["yt-dlp", "-x", "--audio-format", "mp3", "--audio-quality", "9", "-o", aud, url]).returncode == 0
-    vid_ok = subprocess.run(["yt-dlp", "-f", "worst[ext=mp4]/worst", "-o", vid, url]).returncode == 0
-    if not aud_ok and not vid_ok:
+    _dur = 0
+    try:
+        _dp = subprocess.run(["yt-dlp", "--print", "duration", url], capture_output=True, text=True, timeout=8)
+        _dur = int(float((_dp.stdout or "0").strip().splitlines()[0]))
+    except Exception:
+        _dur = 0
+    _sub_txt = ""
+    if _dur > 180:
+        try:
+            _sp = f"temp/sub_{_tid}"
+            subprocess.run(["yt-dlp", "--skip-download", "--write-auto-sub", "--write-sub", "--sub-lang", "en,hi", "--sub-format", "vtt", "-o", _sp, url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12)
+            for _sf in _gl.glob(f"{_sp}*"):
+                _raw = open(_sf, "r", encoding="utf-8", errors="ignore").read()
+                _sub_txt += " " + _rv.sub(r"<[^>]+>|WEBVTT|\d{2}:\d{2}[^\n]*", " ", _raw)
+                os.remove(_sf)
+            _sub_txt = " ".join(_sub_txt.split())[:6000]
+        except Exception:
+            _sub_txt = ""
+    _vfmt = "best[height<=720][ext=mp4]/best[ext=mp4]/best"
+    _vsec = ["--download-sections", "*0:00-0:20"] if _dur > 180 else []
+    aud_ok = False if _sub_txt else (subprocess.run(["yt-dlp", "-x", "--audio-format", "mp3", "--audio-quality", "9", "-o", aud, url]).returncode == 0)
+    vid_ok = subprocess.run(["yt-dlp", "-f", _vfmt] + _vsec + ["-o", vid, url]).returncode == 0
+    if not _sub_txt and not aud_ok and not vid_ok:
         return 25, "CLOUD CHECK", title, ["Cloud video download restricted; title verified"]
-    speech = get_speech(aud if aud_ok else vid)
+    speech = _sub_txt if _sub_txt else get_speech(aud if aud_ok else vid)
     if os.path.exists(aud):
         os.remove(aud)
     b_vals, blur_flags, recycled = [], 0, False
