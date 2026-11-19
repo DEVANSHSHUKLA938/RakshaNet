@@ -384,6 +384,28 @@ def _burst_mismatch_check(cap, total, speech):
     except Exception:
         return False, ""
 
+def _log_ledger(case_id, verdict, summary, proof_url):
+    import json as _jl, os as _ol, time as _tl
+    if "[UNCONFIRMED]" in str(verdict):
+        return
+    try:
+        _ol.makedirs("data", exist_ok=True)
+        path = "data/ledger.json"
+        rows = _jl.load(open(path)) if _ol.path.exists(path) else []
+        rows.insert(0, {
+            "case_id": str(case_id),
+            "verdict": str(verdict)[:40],
+            "summary": str(summary)[:220],
+            "proof": str(proof_url),
+            "ts": int(_tl.time()),
+        })
+        rows = rows[:200]
+        _jl.dump(rows, open(path, "w"), indent=2)
+        if _ol.path.isdir("docs"):
+            _jl.dump(rows, open("docs/ledger.json", "w"), indent=2)
+    except Exception:
+        pass
+
 def deep_verify(claim):
     claim = _dual_lang_query(claim)
     import os, re as _re, urllib.parse, requests as _rq, feedparser
@@ -602,7 +624,8 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.close()
             card = make_fact_card(txt, fact)
             x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(f'{fact[:180]} Proof: {purl} #RakshaNet')}"
-            kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)]]
+            kb = [[InlineKeyboardButton("Read Full Proof", url=purl), InlineKeyboardButton("Share on X (1-Click)", url=x_url)],
+            [InlineKeyboardButton("Report Mistake / Submit Proof", callback_data="appeal")]]
             full_msg = fact
             if len(full_msg) <= 1000:
                 await update.message.reply_photo(photo=open(card, "rb"), caption=full_msg, reply_markup=InlineKeyboardMarkup(kb))
@@ -1124,6 +1147,15 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text("Rendering Counter-Video...")
         out = build_counter(url, score, reason)
         await q.message.reply_video(video=open(out, "rb"), caption=f"[Approved Counter-Video] Score: {score}%")
+    elif str(q.data).startswith("appeal"):
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            conn.execute("CREATE TABLE IF NOT EXISTS appeals (ts INT, msg TEXT)")
+            conn.execute("INSERT INTO appeals (ts, msg) VALUES (?, ?)", (int(time.time()), str(q.message.caption or q.message.text or "")[:240]))
+            conn.commit(); conn.close()
+        except Exception:
+            pass
+        await q.message.reply_text("Appeal logged for review. Thank you for helping keep RakshaNet accurate.")
     else:
         await q.edit_message_text("Ignored. Marked as safe.")
 
