@@ -186,9 +186,13 @@ def analyze_video(url):
                 blur_flags += 1
         conn.commit()
         conn.close()
+        burst_risk, scene_kw = _burst_mismatch_check(cap, total, speech)
         cap.release()
         os.remove(vid)
     score, reasons = 0, []
+    if burst_risk:
+        score += 25
+        reasons.append('0.5s Burst: Possible AI/dubbed media mismatch')
     if recycled:
         score += 40
         reasons.append("Recycled old clip matched in pHash memory")
@@ -198,11 +202,13 @@ def analyze_video(url):
     if len(b_vals) >= 2 and np.std(b_vals) > 35:
         score += 25
         reasons.append("Scene lighting jump detected")
-    q_txt = speech if len(speech.split()) >= 4 else title
+    q_txt = speech if len(speech.split()) >= 4 else (scene_kw if scene_kw else title)
     fc = feedparser.parse(f"https://news.google.com/rss/search?q={urllib.parse.quote(chr(32).join(q_txt.split()[:8]))}+fact+check&hl=en-IN&gl=IN&ceid=IN:en")
     if fc.entries:
         score += 30
         reasons.append(f"Ref: {fc.entries[0].title[:55]}")
+        if len(fc.entries) > 1:
+            reasons.append(f"Prior Debunks: {len(fc.entries)}")
     verdict = "AUTO-COUNTER (HIGH RISK)" if score >= 85 else ("NEEDS REVIEW" if score >= 50 else "LIKELY SAFE")
     return score, verdict, speech[:200] if speech else title[:120], reasons
 #
@@ -258,7 +264,106 @@ def _check_campaign(txt):
         pass
     return ""
 
+def _detect_state_hl(txt):
+    t = str(txt or "")
+    scripts = [
+        (r"[\u0980-\u09FF]", "bn"), (r"[\u0B80-\u0BFF]", "ta"),
+        (r"[\u0C00-\u0C7F]", "te"), (r"[\u0A80-\u0AFF]", "gu"),
+        (r"[\u0A00-\u0A7F]", "pa"), (r"[\u0C80-\u0CFF]", "kn"),
+        (r"[\u0D00-\u0D7F]", "ml"), (r"[\u0B00-\u0B7F]", "or"),
+        (r"[\u0600-\u06FF]", "ur"),
+    ]
+    for pat, code in scripts:
+        if re.search(pat, t):
+            return code
+    tl = t.lower()
+    places = {
+        "bn": ("kolkata", "bengal", "howrah", "siliguri"),
+        "ta": ("chennai", "tamil nadu", "madurai", "coimbatore"),
+        "te": ("hyderabad", "telangana", "andhra", "visakhapatnam"),
+        "mr": ("mumbai", "pune", "nagpur", "maharashtra"),
+        "gu": ("ahmedabad", "surat", "vadodara", "gujarat"),
+        "pa": ("punjab", "amritsar", "ludhiana", "chandigarh"),
+        "kn": ("bengaluru", "bangalore", "mysuru", "karnataka"),
+        "ml": ("kochi", "thiruvananthapuram", "kerala"),
+        "or": ("odisha", "bhubaneswar", "cuttack"),
+    }
+    for code, kws in places.items():
+        if any(k in tl for k in kws):
+            return code
+    return None
+
+def _dual_lang_query(q):
+    s = str(q or "").strip()
+    if not s:
+        return s
+    has_non_ascii = any(ord(c) > 127 for c in s)
+    if not has_non_ascii:
+        return s
+    try:
+        gk = os.environ.get("GROQ_API_KEY", "").strip()
+        if not gk:
+            return s
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": f"Translate this claim to concise English search keywords (max 10 words, no quotes): {s[:300]}"}],
+                "max_tokens": 35, "temperature": 0,
+            },
+            timeout=6,
+        )
+        en = r.json()["choices"][0]["message"]["content"].strip()
+        if en and len(en) > 3:
+            return f"{en} {s}"
+    except Exception:
+        pass
+    return s
+
+def _burst_mismatch_check(cap, total, speech):
+    import base64 as _b64
+    gk = os.environ.get("GROQ_API_KEY", "").strip()
+    if not gk or total < 10:
+        return False, ""
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    mid = max(0, total // 2)
+    imgs = []
+    for off in (0.0, 0.5, 1.0):
+        idx = min(total - 1, int(mid + off * fps))
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        ok, fr = cap.read()
+        if ok:
+            _, buf = cv2.imencode(".jpg", cv2.resize(fr, (640, 360)))
+            imgs.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{_b64.b64encode(buf).decode()}"}})
+    if not imgs:
+        return False, ""
+    sp = (speech or "").strip()[:250]
+    prompt = (
+        f"Inspect these 3 frames taken 0.5s apart. Audio transcript: '{sp}'. "
+        "Reply ONLY in 2 short lines: "
+        "1) SCENE: 6-8 English keywords describing what is shown. "
+        "2) RISK: YES if clear AI face/lip-sync glitch or audio contradicts visual scene, else NO."
+    )
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
+            json={"model": "qwen/qwen3.8-27b", "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}] + imgs}], "max_tokens": 60, "temperature": 0},
+            timeout=10,
+        )
+        ans = r.json()["choices"][0]["message"]["content"].strip()
+        scene = ""
+        for ln in ans.splitlines():
+            if "SCENE:" in ln.upper():
+                scene = ln.split(":", 1)[-1].strip()
+        risk = "RISK: YES" in ans.upper()
+        return risk, scene
+    except Exception:
+        return False, ""
+
 def deep_verify(claim):
+    claim = _dual_lang_query(claim)
     import os, re as _re, urllib.parse, requests as _rq, feedparser
     c_clean = (claim or "").strip()
     q1 = " ".join(_re.findall(r"[A-Za-z0-9\u0900-\u0DFF]+", c_clean)[:10]) or c_clean[:100]
