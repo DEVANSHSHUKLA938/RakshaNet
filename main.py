@@ -243,7 +243,15 @@ def _scan_cyber_url(txt):
     bad_ext = (".apk", ".exe", ".bat", ".scr", ".vbs")
     lookalikes = ("pmkisan", "pm-kisan", "uidai", "aadhaar", "epfo", "incometax", "sbi", "hdfc", "icici", "rbi", "echallan", "parivahan", "india-post", "indiapost", "gov-in")
     official = (".gov.in", ".nic.in", ".rbi.org.in", ".sbi.co.in", ".onlinesbi.sbi", ".uidai.gov.in", ".parivahan.gov.in", ".epfindia.gov.in")
+    _sh = ('bit.ly', 'tinyurl.com', 't.co', 'rb.gy', 'cutt.ly', 'is.gd', 'shorturl.at')
     for u in urls:
+        try:
+            _d0 = u.lower().split('//', 1)[-1].split('/')[0]
+            if any(x in _d0 for x in _sh):
+                import requests as _rr
+                u = _rr.head(u, allow_redirects=True, timeout=3).url or u
+        except Exception:
+            pass
         lu = u.lower().split("?")[0]
         dom = lu.split("//", 1)[-1].split("/")[0].split(":")[0]
         if lu.endswith(bad_ext):
@@ -401,6 +409,13 @@ def _log_ledger(case_id, verdict, summary, proof_url):
         })
         rows = rows[:200]
         _jl.dump(rows, open(path, "w"), indent=2)
+        _su, _sk = _ol.environ.get("SUPABASE_URL", "").strip(), _ol.environ.get("SUPABASE_KEY", "").strip()
+        if _su and _sk:
+            try:
+                import requests as _rs
+                _rs.post(f"{_su.rstrip('/')}/rest/v1/ledger", headers={"apikey": _sk, "Authorization": f"Bearer {_sk}", "Content-Type": "application/json"}, json=rows[0], timeout=4)
+            except Exception:
+                pass
         if _ol.path.isdir("docs"):
             _jl.dump(rows, open("docs/ledger.json", "w"), indent=2)
     except Exception:
@@ -690,6 +705,13 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
             if "[UNCONFIRMED]" in fact:
                 conn.execute("INSERT OR IGNORE INTO watchlist (claim, source_url, chat_id) VALUES (?, ?, ?)", (txt, purl, update.effective_chat.id))
+            if d.get("appeals"):
+                conn.execute("CREATE TABLE IF NOT EXISTS appeals (ts INT, msg TEXT)")
+                for _ts, _mg in d.get("appeals", []):
+                    conn.execute("INSERT OR IGNORE INTO appeals (ts, msg) VALUES (?, ?)", (_ts, _mg))
+            if d.get("ledger") and not os.path.exists("data/ledger.json"):
+                os.makedirs("data", exist_ok=True)
+                json.dump(d.get("ledger"), open("data/ledger.json", "w"), indent=2)
             conn.commit()
             conn.close()
             _log_ledger("RN", fact.split("]")[0]+"]" if "]" in fact else "CHECK", fact, purl)
@@ -1114,6 +1136,8 @@ def _sync_cloud_memory(mode="save"):
                 "video_hashes": conn.execute("SELECT phash, label, COALESCE(first_seen, '') FROM video_hashes LIMIT 500").fetchall(),
                 "source_history": conn.execute("SELECT src, total, fake_cnt FROM source_history LIMIT 500").fetchall(),
                 "yt_queue": conn.execute("SELECT claim, fact, purl, priority FROM yt_queue LIMIT 100").fetchall(),
+            "appeals": conn.execute("SELECT ts, msg FROM appeals ORDER BY ts DESC LIMIT 100").fetchall() if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='appeals'").fetchone() else [],
+            "ledger": json.load(open("data/ledger.json"))[:200] if os.path.exists("data/ledger.json") else [],
             }
             payload = json.dumps(d, indent=2)
             open(mpath, "w", encoding="utf-8").write(payload)
