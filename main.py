@@ -1304,13 +1304,42 @@ _wt.Thread(target=_watchlist_loop, daemon=True).start()
 _wt.Thread(target=_daily_roundup_loop, daemon=True).start()
 
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 if os.environ.get("PORT"):
     class H(BaseHTTPRequestHandler):
-        def do_GET(self): self.send_response(200); self.end_headers(); self.wfile.write(b"RakshaNet OK")
+        def _send_json(self, obj, code=200):
+            import json as _jh
+            data = _jh.dumps(obj).encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(data)
+        def do_GET(self):
+            import json as _jh, os as _oh, urllib.parse as _up
+            if self.path.startswith("/api/ledger"):
+                rows = _jh.load(open("data/ledger.json")) if _oh.path.exists("data/ledger.json") else []
+                return self._send_json(rows[:50])
+            if self.path.startswith("/api/verify"):
+                qs = _up.parse_qs(_up.urlparse(self.path).query)
+                q = (qs.get("q") or [""])[0].strip()[:400]
+                if not q:
+                    return self._send_json({"error": "Empty claim"}, 400)
+                cy = _scan_cyber_url(q)
+                if cy:
+                    return self._send_json({"fact": cy, "proof": "https://cybercrime.gov.in/"})
+                c = _cache_get(q)
+                if c:
+                    return self._send_json({"fact": c[0], "proof": c[1]})
+                h, fb, purl = deep_verify(q)
+                fact = ai_reason(q, h, fb)
+                _log_ledger("RN", fact.split("]")[0]+"]" if "]" in fact else "CHECK", fact, purl)
+                _cache_set(q, fact, purl, None)
+                return self._send_json({"fact": fact, "proof": purl})
+            self.send_response(200); self.end_headers(); self.wfile.write(b"RakshaNet OK")
         def do_HEAD(self): self.send_response(200); self.end_headers()
         def log_message(self, *a): pass
-    threading.Thread(target=lambda: HTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever(), daemon=True).start()
+    threading.Thread(target=lambda: ThreadingHTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever(), daemon=True).start()
 
 def _render_switch(action):
     k = os.environ.get("RENDER_API_KEY")
