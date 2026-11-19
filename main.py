@@ -267,6 +267,7 @@ def _check_campaign(txt):
     return ""
 
 def _detect_state_hl(txt):
+    import re as _rh
     t = str(txt or "")
     scripts = [
         (r"[\u0980-\u09FF]", "bn"), (r"[\u0B80-\u0BFF]", "ta"),
@@ -276,7 +277,7 @@ def _detect_state_hl(txt):
         (r"[\u0600-\u06FF]", "ur"),
     ]
     for pat, code in scripts:
-        if re.search(pat, t):
+        if _rh.search(pat, t):
             return code
     tl = t.lower()
     places = {
@@ -303,11 +304,11 @@ def _dual_lang_query(q):
     if not has_non_ascii:
         return s
     try:
-        import requests as _rq
+        import os, requests as _rq
         gk = os.environ.get("GROQ_API_KEY", "").strip()
         if not gk:
             return s
-        r = requests.post(
+        r = _rq.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
             json={
@@ -325,7 +326,7 @@ def _dual_lang_query(q):
     return s
 
 def _burst_mismatch_check(cap, total, speech):
-    import base64 as _b64
+    import os, base64 as _b64, requests as _rq
     gk = os.environ.get("GROQ_API_KEY", "").strip()
     if not gk or total < 10:
         return False, ""
@@ -349,7 +350,7 @@ def _burst_mismatch_check(cap, total, speech):
         "2) RISK: YES if clear AI face/lip-sync glitch or audio contradicts visual scene, else NO."
     )
     try:
-        r = requests.post(
+        r = _rq.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
             json={"model": "qwen/qwen3.8-27b", "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}] + imgs}], "max_tokens": 60, "temperature": 0},
