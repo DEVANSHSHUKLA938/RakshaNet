@@ -46,79 +46,13 @@
   @media(max-width:760px){.layout{grid-template-columns:1fr;}.lead-box h1{font-size:1.5rem;}}
 </style></head>
 <body>
-
-<section id="rn-live-desk" style="max-width:1060px;margin:18px auto;padding:22px 24px;border-radius:8px;background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;border-top:4px solid #1e3a5f;box-shadow:0 2px 8px rgba(0,0,0,0.05);font-family:system-ui,sans-serif;">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-    <div>
-      <h2 style="margin:0;color:#1e3a5f;font-size:21px;letter-spacing:-0.01em;">RakshaNet Official Fact-Check, Video &amp; Cyber Link Verifier</h2>
-      <div style="margin-top:4px;font-size:14.5px;color:#0f172a;font-weight:700;">Founder &amp; Creator: <span style="color:#1e3a5f;border-bottom:2px solid #0f766e;padding-bottom:1px;">Devansh Shukla</span></div>
-    </div>
-    <span style="font-size:12px;font-weight:700;color:#15803d;background:#dcfce7;padding:4px 10px;border-radius:99px;">24x7 Autonomous Engine: LIVE</span>
-  </div>
-  <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:#334155;background:#f8fafc;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;margin-bottom:14px;">
-    <span><strong>Verified Sources:</strong> PIB, RBI, MoD, WHO, IFCN &amp; 10 State RSS</span>
-    <span><strong>Coverage:</strong> English, Hindi &amp; Regional India</span>
-    <span><strong>Alerts:</strong> @RakshaNet_India &amp; YouTube Shorts</span>
-  </div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-    <input id="rn-q" type="text" placeholder="Paste any viral claim, YouTube/video link, or suspicious URL..." style="flex:1;min-width:240px;padding:11px 14px;border-radius:6px;border:1px solid #94a3b8;background:#ffffff;color:#0f172a;font-size:14px;">
-    <button onclick="rnVerify()" style="padding:11px 22px;border-radius:6px;border:none;background:#1e3a5f;color:#ffffff;font-weight:700;cursor:pointer;">Verify Now</button>
-  </div>
-  <div id="rn-res" style="display:none;padding:14px;border-radius:6px;background:#f8fafc;border:1px solid #cbd5e1;border-left:5px solid #1e3a5f;margin-bottom:16px;font-size:14px;line-height:1.55;color:#0f172a;"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px;">
-    <h3 style="margin:0;color:#1e3a5f;font-size:15px;">Public Audit Ledger (Verified Cases)</h3>
-    <span style="font-size:12px;color:#b91c1c;font-weight:600;">Cyber Fraud Helpline: <a href="https://cybercrime.gov.in/" target="_blank" style="color:#1e3a5f;">cybercrime.gov.in</a> | <a href="tel:1930" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#1e3a5f" style="vertical-align:middle;"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg><span style="color:#b91c1c;font-weight:700;">Call:</span><span style="color:#1e3a5f;font-weight:800;text-decoration:underline;">1930 &rarr;</span></a></span>
-  </div>
-  <input id="rn-filter" oninput="rnRenderLedger()" type="text" placeholder="Search by Case ID (RN-...) or keyword..." style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-size:13px;margin-bottom:10px;">
-  <div id="rn-ledger" style="max-height:240px;overflow-y:auto;font-size:13px;color:#1e293b;border:1px solid #e2e8f0;border-radius:6px;background:#ffffff;">Loading live ledger...</div>
-</section>
-<script>
-const RN_API = "https://rakshanet-8ldu.onrender.com";
-let _rnRows = [];
-async function rnVerify() {
-  const q = document.getElementById("rn-q").value.trim();
-  const box = document.getElementById("rn-res");
-  if (!q) return;
-  box.style.display = "block";
-  box.innerHTML = "Checking PIB/RBI official feeds, news, video forensics &amp; cyber scanner...";
-  try {
-    const r = await fetch(RN_API + "/api/verify?q=" + encodeURIComponent(q));
-    const d = await r.json();
-    const txt = d.fact || d.error || "No response";
-    const col = txt.includes("[FAKE]") || txt.includes("HIGH RISK") ? "#dc2626" : (txt.includes("[VERIFIED]") || txt.includes("SAFE") ? "#16a34a" : (txt.includes("[CYBER") ? "#7e22ce" : "#475569"));
-    box.style.borderLeftColor = col;
-    box.innerHTML = txt.replace(/</g, "&lt;") + (d.proof ? ' <br><a href="' + d.proof + '" target="_blank" style="color:#1e3a5f;font-weight:700;">Read Official Proof &rarr;</a>' : "");
-    rnLoadLedger();
-  } catch (e) {
-    box.innerHTML = "Server waking up (Render Free Tier) — please click Verify Now again in 20 seconds.";
-  }
-}
-function rnRenderLedger() {
-  const f = (document.getElementById("rn-filter").value || "").toLowerCase();
-  const el = document.getElementById("rn-ledger");
-  const list = _rnRows.filter(x => (x.summary + " " + x.case_id + " " + x.verdict).toLowerCase().includes(f));
-  if (!list.length) { el.innerHTML = "<div style='padding:10px;color:#64748b;'>No verified cases recorded yet.</div>"; return; }
-  el.innerHTML = list.map(x => `<div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;"><strong>${(x.verdict||"").replace(/</g,"&lt;")}</strong> &mdash; ${(x.summary||"").replace(/</g,"&lt;")} ${x.proof ? `<a href="${x.proof}" target="_blank" style="color:#1e3a5f;font-weight:600;">[Proof]</a>` : ""}</div>`).join("");
-}
-async function rnLoadLedger() {
-  try {
-    const r = await fetch(RN_API + "/api/ledger");
-    _rnRows = await r.json();
-    rnRenderLedger();
-  } catch (e) {
-    document.getElementById("rn-ledger").innerHTML = "<div style='padding:10px;color:#64748b;'>Ledger connects once Render wakes up.</div>";
-  }
-}
-rnLoadLedger();
-</script>
-
 <div class="top-strip"><div class="top-in">
   <div>Thursday, November 19, 2026 &bull; India Edition</div>
   <a class="top-btn" href="https://t.me/rakshanet_devansh_bot" target="_blank">VERIFY A VIDEO OR CLAIM</a>
 </div></div>
 <div class="masthead">
   <div class="logo">Raksha<span>Net</span></div>
-  <div class="tagline">Evidence-First Fact-Check, Narrative Counter &amp; OSINT Desk &bull; Updated 19 Nov 2026, 04:28 PM IST</div>
+  <div class="tagline">Evidence-First Fact-Check, Narrative Counter &amp; OSINT Desk &bull; Updated 19 Nov 2026, 06:17 PM IST</div>
 </div>
 <div class="cat-bar"><div class="cat-in">
   <div class="nav-tabs">
@@ -134,7 +68,7 @@ rnLoadLedger();
   <span class="lead-cat">Verified Counter-Report</span>
     <h1>[YouTube] Kulgam Encounter : आतंकी Latif Bhat के एनकाउंटर पर चौंकाने वाला खुलासा | Indian Army I Kulgam News</h1>
     <p class="lead-sub">Automated OSINT & Fact-Check verification log.</p>
-    <div class="byline">Verified By: <b>RakshaNet Engine</b> &bull; 19 Nov 2026, 04:28 PM IST &bull; <a href="https://news.google.com/rss/articles/CBMiVkFVX3lxTE8wYXpySm9QQ3BKY3JPNldmeW14R3ZiNkhWay1yRFUzaEgzUThqcjlyRG05T2NBUk9FZGpIMTFaM1pFSWY2ZEFvZ1FHT0dwZlJzdnpFMm9n?oc=5" target="_blank">View Official Proof &rarr;</a></div>
+    <div class="byline">Verified By: <b>RakshaNet Engine</b> &bull; 19 Nov 2026, 06:17 PM IST &bull; <a href="https://news.google.com/rss/articles/CBMiVkFVX3lxTE8wYXpySm9QQ3BKY3JPNldmeW14R3ZiNkhWay1yRFUzaEgzUThqcjlyRG05T2NBUk9FZGpIMTFaM1pFSWY2ZEFvZ1FHT0dwZlJzdnpFMm9n?oc=5" target="_blank">View Official Proof &rarr;</a></div>
   </section>
   <div class="layout">
     <main>
@@ -150,13 +84,13 @@ rnLoadLedger();
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
-          <h3><a href="https://news.google.com/rss/articles/CBMiV0FVX3lxTE52LVlOQm5NbzV1SWYxODQ3aHJLbzBxUEpRQU9aVjQxOTlYOE5pYU1RNURjemd6RlhGamRvQVl2TWFna0JtWS1fbE9ydlg0V3NCbUJaenRRTQ?oc=5" target="_blank">[Instagram] How to contact the Grievance Officer and Meta in India</a></h3>
-          <div class="byline">SOURCE: <b>INSTAGRAM</b> &bull; <a href="https://news.google.com/rss/articles/CBMiV0FVX3lxTE52LVlOQm5NbzV1SWYxODQ3aHJLbzBxUEpRQU9aVjQxOTlYOE5pYU1RNURjemd6RlhGamRvQVl2TWFna0JtWS1fbE9ydlg0V3NCbUJaenRRTQ?oc=5" target="_blank">Read Original &rarr;</a></div>
+          <h3><a href="https://news.google.com/rss/articles/CBMiUkFVX3lxTE54ck1JWlJmbjJ2MEVvWVhpa1p4bmxaelBLMnNrLW0zRjNfSXh6VURTa3RsTGZONnVYbl9SeXZmMC1BQldVVGlONDR3MFBPazlSaHc?oc=5" target="_blank">[Instagram] India is playing a whole new game!</a></h3>
+          <div class="byline">SOURCE: <b>INSTAGRAM</b> &bull; <a href="https://news.google.com/rss/articles/CBMiUkFVX3lxTE54ck1JWlJmbjJ2MEVvWVhpa1p4bmxaelBLMnNrLW0zRjNfSXh6VURTa3RsTGZONnVYbl9SeXZmMC1BQldVVGlONDR3MFBPazlSaHc?oc=5" target="_blank">Read Original &rarr;</a></div>
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
-          <h3><a href="https://news.google.com/rss/articles/CBMiTEFVX3lxTFBHUm51UnNnNnFXaGtuQTZwS2IwTXhzdnE4MVJLdzdLQ1hzRG0wQk1UMEtxS1prVEN5R2FGYmozMWh5bmp1TGJIN1RDLXk?oc=5" target="_blank">[Instagram] FamApp by Trio: UPI & Card (@fam.india)</a></h3>
-          <div class="byline">SOURCE: <b>INSTAGRAM</b> &bull; <a href="https://news.google.com/rss/articles/CBMiTEFVX3lxTFBHUm51UnNnNnFXaGtuQTZwS2IwTXhzdnE4MVJLdzdLQ1hzRG0wQk1UMEtxS1prVEN5R2FGYmozMWh5bmp1TGJIN1RDLXk?oc=5" target="_blank">Read Original &rarr;</a></div>
+          <h3><a href="https://news.google.com/rss/articles/CBMiVkFVX3lxTFBxME1NVTRqUno2TVNGX1BzSHdVcVVtaWVkYVFYZ2J2eWdxTDhjREN4aGlWeGF4TEhhZnFzYTV6QWJwOVJJNTlUNUFMZGRKejZVZDlaSjRR?oc=5" target="_blank">[Instagram] The Process || Made in India , with the love and dedication of our artisans, this special creation has now found its way to Her Royal Highness Catherine, The Princess of Wales. A moment of immense pride for everyone whose hands helped bring this piece to lif</a></h3>
+          <div class="byline">SOURCE: <b>INSTAGRAM</b> &bull; <a href="https://news.google.com/rss/articles/CBMiVkFVX3lxTFBxME1NVTRqUno2TVNGX1BzSHdVcVVtaWVkYVFYZ2J2eWdxTDhjREN4aGlWeGF4TEhhZnFzYTV6QWJwOVJJNTlUNUFMZGRKejZVZDlaSjRR?oc=5" target="_blank">Read Original &rarr;</a></div>
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
@@ -200,8 +134,8 @@ rnLoadLedger();
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
-          <h3><a href="https://news.google.com/rss/articles/CBMisAFBVV95cUxNM2swakY3TWc0TndmcXhWZmpaeEpxV2lDRHFTbnZQZkFTRWRodHI0VUJISFk5bEpWOGdjMVRoNlBTMFRLT0pNZ2VJYWxLcDhUeVB3LU5vODMtaVlteW5CWWJPLV8wZFdzWXo1amFlYjZ0VmNldXhFeVNZRk83UFE2aVdXa0JZRjVQb0xXUlBEUDJxWmNHWmxjVElNUTBzV0J6UkJtMHBieDZrLUNaU1lVNdIBtgFBVV95cUxPQlU3cXc5a3JIall2TzFxZjU4T2VYZ1kyU3ZuU1l6Uzh2cFFRTGJIMUFtQVhCMVBHbzFrbm5lWVZZcXZfamMxR1lEQ1dPaGtvc0E0OUZ0VXpiTVMtelJWZm5kbEFlRjgtNHkxZkZhaFBoNXhlVHVNQmFMbW05TXNBei1lSmpHMDZMUy1HRmRqdHZKN3ozRHRzOU51RXVtN3F2Zm81LTBFNlN4VktYNm8wX0d6Wm1Sdw?oc=5" target="_blank">Video Of Sonia Gandhi’s Memoir At Mumbai Roadside Stall Is AI-Generated | BOOM - BOOM Fact Check</a></h3>
-          <div class="byline">SOURCE: <b>BOOMLIVE IFCN</b> &bull; <a href="https://news.google.com/rss/articles/CBMisAFBVV95cUxNM2swakY3TWc0TndmcXhWZmpaeEpxV2lDRHFTbnZQZkFTRWRodHI0VUJISFk5bEpWOGdjMVRoNlBTMFRLT0pNZ2VJYWxLcDhUeVB3LU5vODMtaVlteW5CWWJPLV8wZFdzWXo1amFlYjZ0VmNldXhFeVNZRk83UFE2aVdXa0JZRjVQb0xXUlBEUDJxWmNHWmxjVElNUTBzV0J6UkJtMHBieDZrLUNaU1lVNdIBtgFBVV95cUxPQlU3cXc5a3JIall2TzFxZjU4T2VYZ1kyU3ZuU1l6Uzh2cFFRTGJIMUFtQVhCMVBHbzFrbm5lWVZZcXZfamMxR1lEQ1dPaGtvc0E0OUZ0VXpiTVMtelJWZm5kbEFlRjgtNHkxZkZhaFBoNXhlVHVNQmFMbW05TXNBei1lSmpHMDZMUy1HRmRqdHZKN3ozRHRzOU51RXVtN3F2Zm81LTBFNlN4VktYNm8wX0d6Wm1Sdw?oc=5" target="_blank">Read Original &rarr;</a></div>
+          <h3><a href="https://news.google.com/rss/articles/CBMisAFBVV95cUxPXzA4YjZQTlJ2NzdYSlJxSk1GcDhQR2RLa25RUzlnRXlGNklLZGpBVmdlVHB6TllOS2Zlc1hQeFpObHJlOExNaWRGeVFBa1FmbXBPcFJYN3A5NFctdkNfblJGb1JlOU5EQVZaeEZ1UjVVcWtyZ3R4TndvUk93dm5fU0NHWi14dUFxNEZONm5sWnVkbDlicmFnTm9LNmM3Z3ZjbTdZdlBNU1VqZnpSbDNaYtIBtgFBVV95cUxOZWc4TW1KRm9oLWtrRGlqVUVkQ251amcwTF9EVEF6SmhMWGVUcFk3RGlyd0RKOFpjanJmWDBaTXYwM1BfNUszLXdGZVRaS1lNVjg2d2JZRjVVOVA1X0p1S2REbWZac18tMzhCWFVFUjZUVFBEY0c4bmZWRmFjTm5lWHFKU09qSjlwWkgzLUJ6QXZrekpfaXpSOEx1eEoxb1hmeXdLQ25MYmthMVh0dG1VX1Q4VlF4dw?oc=5" target="_blank">Deepfakes Targeting Indian Army Personnel Shared Amid Kulgam Attack | BOOM - BOOM Fact Check</a></h3>
+          <div class="byline">SOURCE: <b>BOOMLIVE IFCN</b> &bull; <a href="https://news.google.com/rss/articles/CBMisAFBVV95cUxPXzA4YjZQTlJ2NzdYSlJxSk1GcDhQR2RLa25RUzlnRXlGNklLZGpBVmdlVHB6TllOS2Zlc1hQeFpObHJlOExNaWRGeVFBa1FmbXBPcFJYN3A5NFctdkNfblJGb1JlOU5EQVZaeEZ1UjVVcWtyZ3R4TndvUk93dm5fU0NHWi14dUFxNEZONm5sWnVkbDlicmFnTm9LNmM3Z3ZjbTdZdlBNU1VqZnpSbDNaYtIBtgFBVV95cUxOZWc4TW1KRm9oLWtrRGlqVUVkQ251amcwTF9EVEF6SmhMWGVUcFk3RGlyd0RKOFpjanJmWDBaTXYwM1BfNUszLXdGZVRaS1lNVjg2d2JZRjVVOVA1X0p1S2REbWZac18tMzhCWFVFUjZUVFBEY0c4bmZWRmFjTm5lWHFKU09qSjlwWkgzLUJ6QXZrekpfaXpSOEx1eEoxb1hmeXdLQ25MYmthMVh0dG1VX1Q4VlF4dw?oc=5" target="_blank">Read Original &rarr;</a></div>
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
@@ -230,13 +164,13 @@ rnLoadLedger();
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
-          <h3><a href="https://www.youtube.com/watch?v=xwKjC5GTFug" target="_blank">Decode: Trump-Xi-Putin Meet — तीन Superpowers की मुलाकात DECODE | Sudhir Chaudhary | APEC Summit</a></h3>
-          <div class="byline">SOURCE: <b>DD NEWS YOUTUBE</b> &bull; <a href="https://www.youtube.com/watch?v=xwKjC5GTFug" target="_blank">Read Original &rarr;</a></div>
+          <h3><a href="https://www.youtube.com/watch?v=44GQzROGggQ" target="_blank">भारत में SCO सभ्यता संवाद मंच का आगाज, PM Modi करेंगे उद्घाटन | Samachar | Hindi News | DD News</a></h3>
+          <div class="byline">SOURCE: <b>DD NEWS YOUTUBE</b> &bull; <a href="https://www.youtube.com/watch?v=44GQzROGggQ" target="_blank">Read Original &rarr;</a></div>
         </article>
         <article class="story" data-type="safe">
           <span class="cat safe">DEFENCE MONITOR</span>
-          <h3><a href="https://www.youtube.com/watch?v=95r6P9iL95I" target="_blank">Decode: GTA 6 Launch — 13 साल बाद GTA का नया Video Game लॉन्च | Sudhir Chaudhary | Rockstar Games</a></h3>
-          <div class="byline">SOURCE: <b>DD NEWS YOUTUBE</b> &bull; <a href="https://www.youtube.com/watch?v=95r6P9iL95I" target="_blank">Read Original &rarr;</a></div>
+          <h3><a href="https://www.youtube.com/watch?v=5xGCnr8HfTc" target="_blank">भारत मंडपम में सजा मध्य प्रदेश का पंडाल, दिखी विरासत की झलक | Madhya Pradesh Day | Samachar</a></h3>
+          <div class="byline">SOURCE: <b>DD NEWS YOUTUBE</b> &bull; <a href="https://www.youtube.com/watch?v=5xGCnr8HfTc" target="_blank">Read Original &rarr;</a></div>
         </article></main>
     <aside>
       <div class="side-box">
@@ -260,5 +194,4 @@ rnLoadLedger();
 let cur='all';
 function setType(t,el){cur=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');filterItems();}
 function filterItems(){const q=document.getElementById('q').value.toLowerCase();document.querySelectorAll('.story').forEach(c=>{const okT=(cur==='all'||c.dataset.type===cur);const okQ=c.innerText.toLowerCase().includes(q);c.style.display=(okT&&okQ)?'block':'none';});}
-</script>
-</body></html>
+</script></body></html>
