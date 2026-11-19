@@ -590,6 +590,9 @@ def ai_reason(claim, heads, fb, tech_flags=None):
     return f"[UNCONFIRMED] {fb} (Case: {case_id} | {ist_now})"
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ap_ref = context.user_data.pop("awaiting_proof", None)
+    if ap_ref:
+        await update.message.reply_text("[Proof Received] Verifying your submitted proof through RakshaNet forensics...")
     import urllib.parse
     txt = (update.message.text or "").strip()
     if not txt:
@@ -671,6 +674,9 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"[Error] {e}")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ap_ref = context.user_data.pop("awaiting_proof", None)
+    if ap_ref:
+        await update.message.reply_text("[Proof Received] Verifying your submitted proof through RakshaNet forensics...")
     import urllib.parse, time as _tm, subprocess, sqlite3
     m = update.message.video or update.message.voice or update.message.audio or update.message.video_note
     if not m:
@@ -735,6 +741,9 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(p)
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ap_ref = context.user_data.pop("awaiting_proof", None)
+    if ap_ref:
+        await update.message.reply_text("[Proof Received] Verifying your submitted proof through RakshaNet forensics...")
     import base64, requests, urllib.parse, time as _tm
     if not update.message.photo:
         return
@@ -1164,7 +1173,9 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             conn = sqlite3.connect(DB_FILE)
             conn.execute("CREATE TABLE IF NOT EXISTS appeals (ts INT, msg TEXT)")
-            conn.execute("INSERT INTO appeals (ts, msg) VALUES (?, ?)", (int(time.time()), str(q.message.caption or q.message.text or "")[:240]))
+            import time as _ta
+            conn.execute("INSERT INTO appeals (ts, msg) VALUES (?, ?)", (int(_ta.time()), str(q.message.caption or q.message.text or "")[:240]))
+            context.user_data["awaiting_proof"] = str(q.message.caption or q.message.text or "")[:120]
             conn.commit(); conn.close()
         except Exception:
             pass
@@ -1174,7 +1185,7 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if "[UNCONFIRMED]" in orig and rf and "[UNCONFIRMED]" not in rf:
             await q.message.reply_text(f"[CORRECTION / UPDATE] {rf}")
         else:
-            await q.message.reply_text("Appeal logged & re-verified against live Tier-1/Tier-2 sources — original verdict stands.")
+            await q.message.reply_text("Appeal logged & re-verified against live Tier-1/Tier-2 sources — original verdict stands. Send your official link, photo, video, or text proof now so RakshaNet can verify it.")
     else:
         await q.edit_message_text("Ignored. Marked as safe.")
 
