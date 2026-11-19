@@ -90,8 +90,10 @@ def get_speech(vid_path):
 
 def make_fact_card(claim, fact):
     import re as _rc, time as _tc
-    c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
-    f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+    c_raw = _dual_lang_query(claim) if any(ord(c) > 127 for c in str(claim).replace("₹", "")) else str(claim)
+    f_raw = _dual_lang_query(fact) if any(ord(c) > 127 for c in str(fact).replace("₹", "")) else str(fact)
+    c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", c_raw.replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+    f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", f_raw.replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
     if len(c_clean) < 8:
         c_clean = _dual_lang_query(claim).encode("ascii", "ignore").decode().strip()[:220] or "Regional Language Claim"
     fu = f_clean.upper()
@@ -314,7 +316,7 @@ def _dual_lang_query(q):
             json={
                 "model": "llama-3.1-8b-instant",
                 "messages": [{"role": "user", "content": f"Translate this claim into a clear English fact-check search sentence (max 12 words, no quotes): {s[:300]}"}],
-                "max_tokens": 35, "temperature": 0,
+                "max_tokens": 80, "temperature": 0,
             },
             timeout=12,
         )
