@@ -188,6 +188,7 @@ def analyze_video(url):
                 recycled = True
             else:
                 conn.execute("INSERT OR IGNORE INTO video_hashes (phash, label) VALUES (?, ?)", (ph, title[:80]))
+                _sb_req("POST", "video_hashes", {"phash": ph, "label": title[:80], "first_seen": str(int(time.time()))})
             b_vals.append(float(np.mean(gray)))
             h, w = gray.shape
             fv = cv2.Laplacian(gray, cv2.CV_64F).var()
@@ -631,6 +632,11 @@ def deep_verify(claim):
         purl = "https://factcheck.pib.gov.in/"
     return heads, fb, purl
 
+def _groq_keys():
+    import os as _og
+    ks = [_og.environ.get(n, "").strip() for n in ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3")]
+    return [x for x in ks if x]
+
 def ai_reason(claim, heads, fb, tech_flags=None):
     import os, datetime, hashlib, requests
     k = os.environ.get("GROQ_API_KEY", "").strip()
@@ -653,26 +659,27 @@ def ai_reason(claim, heads, fb, tech_flags=None):
         "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 1F/Tier 2), and key date/figure. End with: "
         f"(Case: {case_id} | {ist_now}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
     )
-    for mdl in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile"):
-        try:
-            resp = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {k}"},
-                json={"model": mdl, "messages": [{"role": "user", "content": p}], "temperature": 0.1, "max_tokens": 1000},
-                timeout=20,
-            )
-            if resp.status_code == 200:
-                ch = resp.json().get("choices") or []
-                if ch:
-                    txt = (ch[0].get("message") or {}).get("content", "").strip()
-                    if txt:
-                        if len(txt) < 25:
-                            txt = f"{txt} {fb} (Case: {case_id} | {ist_now})"
-                        return txt
-            else:
-                print(f"[AI_REASON] {mdl} HTTP {resp.status_code}: {resp.text[:120]}", flush=True)
-        except Exception as _ae:
-            print(f"[AI_REASON] {mdl} err: {_ae}", flush=True)
+    for k in (_groq_keys() or [k]):
+      for mdl in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile"):
+          try:
+              resp = requests.post(
+                  "https://api.groq.com/openai/v1/chat/completions",
+                  headers={"Authorization": f"Bearer {k}"},
+                  json={"model": mdl, "messages": [{"role": "user", "content": p}], "temperature": 0.1, "max_tokens": 1000},
+                  timeout=20,
+              )
+              if resp.status_code == 200:
+                  ch = resp.json().get("choices") or []
+                  if ch:
+                      txt = (ch[0].get("message") or {}).get("content", "").strip()
+                      if txt:
+                          if len(txt) < 25:
+                              txt = f"{txt} {fb} (Case: {case_id} | {ist_now})"
+                          return txt
+              else:
+                  print(f"[AI_REASON] {mdl} HTTP {resp.status_code}: {resp.text[:120]}", flush=True)
+          except Exception as _ae:
+              print(f"[AI_REASON] {mdl} err: {_ae}", flush=True)
     fl = (fb or "").lower()
     if heads and any(w in fl for w in ("debunk", "fake", "false", "hoax", "not banned", "misleading", "खंडन", "फर्जी", "अफवाह", "झूठ", "गलत", "नकली", "बेबुनियाद")):
         return f"[FAKE] {fb} (Case: {case_id} | {ist_now})"
