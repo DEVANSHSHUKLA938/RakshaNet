@@ -22,6 +22,28 @@
     <span><strong>Coverage:</strong> English, Hindi &amp; Regional India</span>
     <span><strong>Alerts:</strong> @RakshaNet_India &amp; YouTube Shorts</span>
   </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding:7px 12px;background:#f1f5f9;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <strong style="color:#1e3a5f;">Language:</strong>
+      <button onclick="rnSetLang('en')" style="padding:3px 10px;border-radius:4px;border:1px solid #1e3a5f;background:#1e3a5f;color:#fff;font-weight:700;cursor:pointer;font-size:12px;">English</button>
+      <button onclick="rnSetLang('hi')" style="padding:3px 10px;border-radius:4px;border:1px solid #1e3a5f;background:#fff;color:#1e3a5f;font-weight:700;cursor:pointer;font-size:12px;">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</button>
+      <select onchange="if(this.value)rnSetLang(this.value)" style="padding:3px 8px;border-radius:4px;border:1px solid #94a3b8;background:#fff;color:#0f172a;font-size:12px;cursor:pointer;">
+        <option value="">More Indian Languages &#9662;</option>
+        <option value="bn">Bengali (&#2476;&#2494;&#2434;&#2482;&#2494;)</option>
+        <option value="ta">Tamil (&#2980;&#2990;&#3007;&#2996;&#3021;)</option>
+        <option value="te">Telugu (&#3108;&#3142;&#3122;&#3137;&#3095;&#3137;)</option>
+        <option value="mr">Marathi (&#2350;&#2352;&#2366;&#2336;&#2368;)</option>
+        <option value="gu">Gujarati (&#2711;&#2753;&#2716;&#2736;&#2750;&#2724;&#2752;)</option>
+        <option value="pa">Punjabi (&#2602;&#2672;&#2588;&#2622;&#2604;&#2624;)</option>
+        <option value="kn">Kannada (&#3221;&#3240;&#3277;&#3240;&#3233;)</option>
+        <option value="ml">Malayalam (&#3374;&#3378;&#3375;&#3390;&#3379;&#3330;)</option>
+        <option value="or">Odia (&#2835;&#2849;&#2879;&#2822;)</option>
+        <option value="ur">Urdu (&#1575;&#1585;&#1583;&#1608;)</option>
+      </select>
+    </div>
+    <a href="#rn-guide" style="color:#0f766e;font-weight:700;text-decoration:none;font-size:12.5px;">How RakshaNet Works &amp; User Guide &rarr;</a>
+  </div>
+  <div id="google_translate_element" style="display:none;"></div>
   <div id="rn-quote" style="background:linear-gradient(90deg,#eff6ff,#f0fdf4);border-left:4px solid #f97316;padding:9px 14px;border-radius:6px;font-size:13px;font-style:italic;color:#1e3a5f;margin-bottom:12px;font-weight:600;">"Satyameva Jayate — Verify before you share. Every verified fact strengthens a safer Digital India."</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;">
     <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Total Visitors</div><div id="rn-st-vis" style="font-size:20px;font-weight:800;color:#1e3a5f;">--</div></div>
@@ -48,6 +70,22 @@
   </div>
   <input id="rn-filter" oninput="rnRenderLedger()" type="text" placeholder="Search by Case ID (RN-...) or keyword..." style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-size:13px;margin-bottom:10px;">
   <div id="rn-ledger" style="max-height:240px;overflow-y:auto;font-size:13px;color:#1e293b;border:1px solid #e2e8f0;border-radius:6px;background:#ffffff;">Loading live ledger...</div>
+  <div id="rn-guide" style="margin-top:18px;padding:16px 18px;border-radius:8px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0f766e;">
+    <h3 style="margin:0 0 10px;color:#1e3a5f;font-size:15.5px;">How RakshaNet Works &amp; Citizen User Guide</h3>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:12px;">
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">1. Paste Claim / Link / Video</span>
+      <span style="color:#0f766e;font-size:15px;">&rarr;</span>
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">2. Official &amp; Cyber Safety Check</span>
+      <span style="color:#0f766e;font-size:15px;">&rarr;</span>
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">3. Verified Verdict + Proof Link</span>
+      <span style="color:#0f766e;font-size:15px;">&rarr;</span>
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">4. Stay Safe / Call 1930</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;font-size:13px;color:#334155;line-height:1.5;">
+      <div><strong style="color:#1e3a5f;">How to Use:</strong> Paste any viral WhatsApp forward, news headline, YouTube video link, or suspicious URL in the Verifier box above and click <strong>Verify Now</strong>. For photos, voice notes, or forwarded videos, use our Telegram Desk <strong>@RakshaNet_India</strong>.</div>
+      <div><strong style="color:#0f766e;">How It Helps You:</strong> Protects you from fake banking/government scam links and malware APKs before you click, stops false rumors before sharing, provides direct official proof links (PIB, RBI, IFCN), and never guesses when proof is unverified.</div>
+    </div>
+  </div>
 </section>
 <script>
 const RN_API = "https://rakshanet-edge.devanshshukla938.workers.dev";
@@ -159,4 +197,29 @@ function rnRunWelcome() {
 }
 rnLoadStats();
 rnRunWelcome();
+
+function rnSetLang(lang) {
+  if (lang === "en") {
+    document.cookie = "googtrans=/en/en;path=/";
+    location.reload();
+    return;
+  }
+  document.cookie = "googtrans=/en/" + lang + ";path=/";
+  if (!window._rnGtLoaded) {
+    window._rnGtLoaded = true;
+    window.googleTranslateElementInit = function() {
+      new google.translate.TranslateElement({pageLanguage: "en", autoDisplay: false}, "google_translate_element");
+      setTimeout(() => {
+        const sel = document.querySelector(".goog-te-combo");
+        if (sel) { sel.value = lang; sel.dispatchEvent(new Event("change")); }
+      }, 600);
+    };
+    const s = document.createElement("script");
+    s.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    document.body.appendChild(s);
+  } else {
+    const sel = document.querySelector(".goog-te-combo");
+    if (sel) { sel.value = lang; sel.dispatchEvent(new Event("change")); }
+  }
+}
 </script>
