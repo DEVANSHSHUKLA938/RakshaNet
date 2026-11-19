@@ -1331,6 +1331,11 @@ if os.environ.get("PORT"):
                 c = _cache_get(q)
                 if c:
                     return self._send_json({"fact": c[0], "proof": c[1]})
+                if "http" in q.lower():
+                    sc, vd, sm, rsn = analyze_video(q)
+                    fact = f"[{vd}] Forensic Score: {sc}% | {sm} | " + "; ".join(rsn[:3])
+                    _log_ledger("RN", f"[{vd}]", fact, q)
+                    return self._send_json({"fact": fact, "proof": q})
                 h, fb, purl = deep_verify(q)
                 fact = ai_reason(q, h, fb)
                 _log_ledger("RN", fact.split("]")[0]+"]" if "]" in fact else "CHECK", fact, purl)
