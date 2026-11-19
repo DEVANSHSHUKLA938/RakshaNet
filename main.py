@@ -312,7 +312,7 @@ def _dual_lang_query(q):
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
             json={
-                "model": "llama-3.3-70b-versatile",
+                "model": "llama-3.1-8b-instant",
                 "messages": [{"role": "user", "content": f"Translate this claim into a clear English fact-check search sentence (max 12 words, no quotes): {s[:300]}"}],
                 "max_tokens": 35, "temperature": 0,
             },
@@ -524,7 +524,7 @@ def ai_reason(claim, heads, fb, tech_flags=None):
         "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 1F/Tier 2), and key date/figure. End with: "
         f"(Case: {case_id} | {ist_now}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
     )
-    for mdl in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b"):
+    for mdl in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"):
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -545,7 +545,7 @@ def ai_reason(claim, heads, fb, tech_flags=None):
         except Exception as _ae:
             print(f"[AI_REASON] {mdl} err: {_ae}", flush=True)
     fl = (fb or "").lower()
-    if heads and any(w in fl for w in ("debunk", "fake", "false", "hoax", "not banned", "misleading")):
+    if heads and any(w in fl for w in ("debunk", "fake", "false", "hoax", "not banned", "misleading", "खंडन", "फर्जी", "अफवाह", "झूठ", "गलत", "नकली", "बेबुनियाद")):
         return f"[FAKE] {fb} (Case: {case_id} | {ist_now})"
     return f"[UNCONFIRMED] {fb} (Case: {case_id} | {ist_now})"
 
