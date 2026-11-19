@@ -946,7 +946,9 @@ def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
     narration = f"{btxt}. {c_txt[:140]}. {f_txt[:180]}. Verify before sharing on RakshaNet India."
     async def _tts():
         await edge_tts.Communicate(narration, voice).save(aud)
-    asyncio.run(_tts())
+    import threading as _tt
+    _th = _tt.Thread(target=lambda: asyncio.run(_tts()))
+    _th.start(); _th.join(timeout=15)
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-t", "5", "-i", s_paths[0],
@@ -954,7 +956,7 @@ def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
         "-loop", "1", "-t", "4", "-i", s_paths[2],
         "-i", aud,
         "-filter_complex", "[0:v][1:v][2:v]concat=n=3:v=1:a=0,scale=720:1280,format=yuv420p[v]",
-        "-map", "[v]", "-map", "3:a", "-c:v", "libx264", "-preset", "ultrafast",
+        "-map", "[v]", "-map", "3:a", "-r", "10", "-c:v", "libx264", "-preset", "ultrafast",
         "-c:a", "aac", "-shortest", vid,
     ]
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
