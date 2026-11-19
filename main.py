@@ -92,6 +92,8 @@ def make_fact_card(claim, fact):
     import re as _rc, time as _tc
     c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
     f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+    if len(c_clean) < 8:
+        c_clean = _dual_lang_query(claim)[:220]
     fu = f_clean.upper()
     if "[FAKE]" in fu:
         col, badge = (200, 30, 30), "VERDICT: FAKE"
@@ -316,7 +318,7 @@ def _dual_lang_query(q):
         )
         en = r.json()["choices"][0]["message"]["content"].strip()
         if en and len(en) > 3:
-            return f"{en} {s}"
+            return en
     except Exception:
         pass
     return s
