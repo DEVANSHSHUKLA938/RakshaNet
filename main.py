@@ -406,6 +406,59 @@ def _log_ledger(case_id, verdict, summary, proof_url):
     except Exception:
         pass
 
+import asyncio as _asc, gc as _gc, hashlib as _hl, os as _os, time as _ts
+_TEXT_SEM = None
+_MEDIA_SEM = None
+_USER_RL = {}
+_CLAIM_CACHE = {}
+
+def _get_sems():
+    global _TEXT_SEM, _MEDIA_SEM
+    if _TEXT_SEM is None:
+        _TEXT_SEM = _asc.Semaphore(6)
+    if _MEDIA_SEM is None:
+        _MEDIA_SEM = _asc.Semaphore(2)
+    return _TEXT_SEM, _MEDIA_SEM
+
+def _rate_limit_hit(uid):
+    now = _ts.time()
+    hist = [t for t in _USER_RL.get(uid, []) if now - t < 15]
+    hist.append(now)
+    _USER_RL[uid] = hist[-6:]
+    return len(hist) > 4
+
+def _cache_key(txt):
+    return _hl.md5(" ".join(str(txt or "").lower().split()).encode("utf-8")).hexdigest()
+
+def _cache_get(txt):
+    k = _cache_key(txt)
+    v = _CLAIM_CACHE.get(k)
+    if not v:
+        return None
+    if _ts.time() > v[0]:
+        _CLAIM_CACHE.pop(k, None)
+        return None
+    cp = v[3] if (v[3] and _os.path.exists(v[3])) else None
+    return v[1], v[2], cp
+
+def _cache_set(txt, fact, purl, card):
+    ttl = 900 if "[UNCONFIRMED]" in str(fact) else 21600
+    if len(_CLAIM_CACHE) > 500:
+        _CLAIM_CACHE.clear()
+    _CLAIM_CACHE[_cache_key(txt)] = (_ts.time() + ttl, fact, purl, card)
+
+def _cleanup_ram():
+    now = _ts.time()
+    try:
+        for fn in _os.listdir("output"):
+            if fn.startswith("fact_card_"):
+                fp = _os.path.join("output", fn)
+                if now - _os.path.getmtime(fp) > 900:
+                    _os.remove(fp)
+    except Exception:
+        pass
+    _gc.collect()
+
 def deep_verify(claim):
     claim = _dual_lang_query(claim)
     import os, re as _re, urllib.parse, requests as _rq, feedparser
@@ -590,6 +643,10 @@ def ai_reason(claim, heads, fb, tech_flags=None):
     return f"[UNCONFIRMED] {fb} (Case: {case_id} | {ist_now})"
 
 async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id if update.effective_user else 0
+    if _rate_limit_hit(uid):
+        await update.message.reply_text("Too many requests at once — please wait 10 seconds.")
+        return
     ap_ref = context.user_data.pop("awaiting_proof", None)
     if ap_ref:
         await update.message.reply_text("[Proof Received] Verifying your submitted proof through RakshaNet forensics...")
@@ -600,14 +657,24 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cyber_alert = _scan_cyber_url(txt)
     if cyber_alert:
         card = make_fact_card(txt[:180], cyber_alert)
+        _cache_set(txt, fact, purl, card)
+        _cleanup_ram()
         await update.message.reply_photo(photo=open(card, "rb"), caption=cyber_alert)
         return
     if not txt.startswith("http"):
         await update.message.reply_text("[Narrative] Investigating authentic sources & data...")
         try:
             camp_tag = _check_campaign(txt)
-            heads, fb, purl = deep_verify(txt)
-            fact = ai_reason(txt, heads, fb)
+            cached = _cache_get(txt)
+            if cached:
+                fact, purl, _cp = cached
+                card = _cp or make_fact_card(txt[:180], fact)
+                await update.message.reply_photo(photo=open(card, "rb"), caption=fact)
+                return
+            _tsem, _ = _get_sems()
+            async with _tsem:
+                heads, fb, purl = await _asc.to_thread(deep_verify, txt)
+            fact = await _asc.to_thread(ai_reason, txt, heads, fb)
             if camp_tag and "[UNCONFIRMED]" not in fact:
                 fact = f"{camp_tag}{fact}"
             if fact.startswith("[CASUAL]"):
@@ -675,6 +742,10 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"[Error] {e}")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id if update.effective_user else 0
+    if _rate_limit_hit(uid):
+        await update.message.reply_text("Too many requests at once — please wait 10 seconds.")
+        return
     ap_ref = context.user_data.pop("awaiting_proof", None)
     if ap_ref:
         await update.message.reply_text("[Proof Received] Verifying your submitted proof through RakshaNet forensics...")
@@ -742,6 +813,10 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(p)
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id if update.effective_user else 0
+    if _rate_limit_hit(uid):
+        await update.message.reply_text("Too many requests at once — please wait 10 seconds.")
+        return
     ap_ref = context.user_data.pop("awaiting_proof", None)
     if ap_ref:
         await update.message.reply_text("[Proof Received] Verifying your submitted proof through RakshaNet forensics...")
