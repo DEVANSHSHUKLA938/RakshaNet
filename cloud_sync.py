@@ -88,3 +88,16 @@ conn.commit()
 conn.close()
 build_public_site()
 print("[CloudSync] Cross-Platform Radar + IFCN updated cleanly!")
+
+
+# Auto-inject RakshaNet Live Verifier Widget
+try:
+    import os as _ow, re as _rw
+    if _ow.path.exists("docs/rn_widget.html") and _ow.path.exists("docs/index.html"):
+        _w = open("docs/rn_widget.html", "r", encoding="utf-8").read()
+        _h = open("docs/index.html", "r", encoding="utf-8").read()
+        if "rn-live-desk" not in _h:
+            _h = _rw.sub(r"(<body[^>]*>)", lambda m: m.group(1) + "\n" + _w, _h, count=1)
+            open("docs/index.html", "w", encoding="utf-8").write(_h)
+except Exception:
+    pass
