@@ -1363,6 +1363,39 @@ async def roundup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as _re:
         await update.message.reply_text(f"Round-Up error: {_re}")
 
+def _handle_feedback(qs):
+    import time as _tf
+    stars = int((qs.get("stars") or ["0"])[0] or 0)
+    cat = (qs.get("cat") or ["General"])[0][:40]
+    msg = (qs.get("msg") or [""])[0].strip()[:220]
+    if stars >= 1 and stars <= 5:
+        rec = f"[FEEDBACK | {stars}★ | {cat}] {msg}"
+        _sb_req("POST", "appeals", {"ts": int(_tf.time()), "msg": rec})
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            conn.execute("CREATE TABLE IF NOT EXISTS appeals (ts INT, msg TEXT)")
+            conn.execute("INSERT INTO appeals (ts, msg) VALUES (?, ?)", (int(_tf.time()), rec))
+            conn.commit(); conn.close()
+        except Exception:
+            pass
+    rows = _sb_req("GET", "appeals", query="?order=ts.desc&limit=100") or []
+    fbs = [r.get("msg", "") for r in rows if "[FEEDBACK" in str(r.get("msg", ""))]
+    nums = []
+    for x in fbs:
+        for d in ("5★", "4★", "3★", "2★", "1★"):
+            if d in x:
+                nums.append(int(d[0])); break
+    avg = round(sum(nums) / len(nums), 1) if nums else 5.0
+    return {"ok": True, "avg": avg, "count": len(nums)}
+
+async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rows = _sb_req("GET", "appeals", query="?order=ts.desc&limit=50") or []
+    fbs = [r.get("msg", "") for r in rows if "[FEEDBACK" in str(r.get("msg", ""))][:8]
+    if not fbs:
+        await update.message.reply_text("No user feedback submitted yet.")
+        return
+    await update.message.reply_text("Latest User Feedback:\n" + "\n".join(f"{i+1}. {x}" for i, x in enumerate(fbs)))
+
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1399,6 +1432,7 @@ app = ApplicationBuilder().token(BOT_TOKEN).write_timeout(30).read_timeout(30).c
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
 app.add_handler(CommandHandler("appeals", appeals_cmd))
+app.add_handler(CommandHandler("feedback", feedback_cmd))
 app.add_handler(CommandHandler("roundup", roundup_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
 app.add_handler(MessageHandler(filters.VIDEO | filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE, handle_media))
@@ -1423,6 +1457,8 @@ if os.environ.get("PORT"):
             self.wfile.write(data)
         def do_GET(self):
             import json as _jh, os as _oh, urllib.parse as _up
+            if self.path.startswith("/api/feedback"):
+                return self._send_json(_handle_feedback(_up.parse_qs(_up.urlparse(self.path).query)))
             if self.path.startswith("/api/stats"):
                 return self._send_json(_get_site_stats(hit=("hit=1" in self.path)))
             if self.path.startswith("/api/ledger"):
