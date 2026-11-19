@@ -272,6 +272,7 @@ def _check_campaign(txt):
         conn.execute("CREATE TABLE IF NOT EXISTS campaign_log (sig TEXT, ts INT)")
         conn.execute("DELETE FROM campaign_log WHERE ts < ?", (now - 86400,))
         conn.execute("INSERT INTO campaign_log (sig, ts) VALUES (?, ?)", (sig, now))
+        _sb_req("POST", "campaign_log", {"sig": sig, "ts": now})
         cnt = conn.execute("SELECT COUNT(*) FROM campaign_log WHERE sig=?", (sig,)).fetchone()[0]
         conn.commit()
         conn.close()
@@ -473,6 +474,26 @@ def _cleanup_ram():
     except Exception:
         pass
     _gc.collect()
+
+def _sb_req(method, table, payload=None, query=""):
+    import os as _osb, requests as _rsb
+    su = _osb.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    sk = _osb.environ.get("SUPABASE_KEY", "").strip()
+    if not (su and sk):
+        return None
+    hdr = {"apikey": sk, "Authorization": f"Bearer {sk}", "Content-Type": "application/json", "Prefer": "resolution=ignore-duplicates"}
+    url = f"{su}/rest/v1/{table}{query}"
+    try:
+        r = _rsb.request(method, url, headers=hdr, json=payload, timeout=5)
+        return r.json() if (r.status_code in (200, 201) and r.text.strip()) else None
+    except Exception:
+        return None
+
+def _sb_keepalive_loop():
+    import time as _tsb
+    while True:
+        _sb_req("GET", "ledger", query="?select=id&limit=1")
+        _tsb.sleep(43200)
 
 def deep_verify(claim):
     claim = _dual_lang_query(claim)
@@ -1299,6 +1320,7 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.execute("INSERT INTO appeals (ts, msg) VALUES (?, ?)", (int(_ta.time()), str(q.message.caption or q.message.text or "")[:240]))
             context.user_data["awaiting_proof"] = str(q.message.caption or q.message.text or "")[:120]
             conn.commit(); conn.close()
+            _sb_req("POST", "appeals", {"ts": int(_ta.time()), "msg": str(q.message.caption or q.message.text or "")[:240]})
         except Exception:
             pass
         orig = str(q.message.caption or q.message.text or "")[:200]
@@ -1326,6 +1348,7 @@ app.add_handler(CallbackQueryHandler(button_tap))
 import threading as _wt
 _wt.Thread(target=_watchlist_loop, daemon=True).start()
 _wt.Thread(target=_daily_roundup_loop, daemon=True).start()
+_wt.Thread(target=_sb_keepalive_loop, daemon=True).start()
 
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1342,7 +1365,7 @@ if os.environ.get("PORT"):
         def do_GET(self):
             import json as _jh, os as _oh, urllib.parse as _up
             if self.path.startswith("/api/ledger"):
-                rows = _jh.load(open("data/ledger.json")) if _oh.path.exists("data/ledger.json") else []
+                rows = _sb_req("GET", "ledger", query="?order=ts.desc&limit=50") or (_jh.load(open("data/ledger.json")) if _oh.path.exists("data/ledger.json") else [])
                 return self._send_json(rows[:50])
             if self.path.startswith("/api/verify"):
                 qs = _up.parse_qs(_up.urlparse(self.path).query)
