@@ -194,4 +194,57 @@
 let cur='all';
 function setType(t,el){cur=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');filterItems();}
 function filterItems(){const q=document.getElementById('q').value.toLowerCase();document.querySelectorAll('.story').forEach(c=>{const okT=(cur==='all'||c.dataset.type===cur);const okQ=c.innerText.toLowerCase().includes(q);c.style.display=(okT&&okQ)?'block':'none';});}
-</script></body></html>
+</script>
+<section id="rn-live-desk" style="max-width:960px;margin:40px auto;padding:24px;border-radius:14px;background:#0f172a;color:#f8fafc;border:1px solid #334155;font-family:system-ui,sans-serif;">
+  <h2 style="margin:0 0 8px;color:#38bdf8;">RakshaNet Live Claim &amp; Cyber Link Verifier</h2>
+  <p style="margin:0 0 16px;color:#cbd5e1;font-size:14px;">Verify any viral news claim or suspicious link directly in your browser (24x7 OSINT + PIB/RBI + Cyber Scanner). Report cyber fraud at <a href="https://cybercrime.gov.in/" target="_blank" style="color:#38bdf8;">cybercrime.gov.in</a> or call <strong>1930</strong>.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+    <input id="rn-q" type="text" placeholder="Paste claim or suspicious link (e.g. RBI banned 500 rupee notes yesterday)..." style="flex:1;min-width:240px;padding:12px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#fff;font-size:14px;">
+    <button onclick="rnVerify()" style="padding:12px 22px;border-radius:8px;border:none;background:#0284c7;color:#fff;font-weight:700;cursor:pointer;">Verify Now</button>
+  </div>
+  <div id="rn-res" style="display:none;padding:14px;border-radius:8px;background:#1e293b;border-left:4px solid #38bdf8;margin-bottom:20px;font-size:14px;line-height:1.5;"></div>
+  <h3 style="margin:20px 0 8px;color:#38bdf8;">Public Audit Ledger (Verified Cases)</h3>
+  <input id="rn-filter" oninput="rnRenderLedger()" type="text" placeholder="Search by Case ID (RN-...) or keyword..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#fff;font-size:13px;margin-bottom:12px;">
+  <div id="rn-ledger" style="max-height:320px;overflow-y:auto;font-size:13px;color:#e2e8f0;">Loading live ledger...</div>
+</section>
+<script>
+const RN_API = "https://rakshanet-8ldu.onrender.com";
+let _rnRows = [];
+async function rnVerify() {
+  const q = document.getElementById("rn-q").value.trim();
+  const box = document.getElementById("rn-res");
+  if (!q) return;
+  box.style.display = "block";
+  box.innerHTML = "Checking official PIB/RBI, news &amp; cyber threat feeds...";
+  try {
+    const r = await fetch(RN_API + "/api/verify?q=" + encodeURIComponent(q));
+    const d = await r.json();
+    const txt = d.fact || d.error || "No response";
+    const col = txt.includes("[FAKE]") ? "#ef4444" : (txt.includes("[VERIFIED]") ? "#22c55e" : (txt.includes("[CYBER") ? "#a855f7" : "#94a3b8"));
+    box.style.borderLeftColor = col;
+    box.innerHTML = txt.replace(/</g, "&lt;") + (d.proof ? ' <br><a href="' + d.proof + '" target="_blank" style="color:#38bdf8;">Read Official Proof</a>' : "");
+    rnLoadLedger();
+  } catch (e) {
+    box.innerHTML = "Server waking up (Render Free Tier) — please click Verify Now again in 20 seconds.";
+  }
+}
+function rnRenderLedger() {
+  const f = (document.getElementById("rn-filter").value || "").toLowerCase();
+  const el = document.getElementById("rn-ledger");
+  const list = _rnRows.filter(x => (x.summary + " " + x.case_id + " " + x.verdict).toLowerCase().includes(f));
+  if (!list.length) { el.innerHTML = "No verified cases recorded yet."; return; }
+  el.innerHTML = list.map(x => `<div style="padding:10px;border-bottom:1px solid #334155;"><strong>${(x.verdict||"").replace(/</g,"&lt;")}</strong> &mdash; ${(x.summary||"").replace(/</g,"&lt;")} ${x.proof ? `<a href="${x.proof}" target="_blank" style="color:#38bdf8;">[Proof]</a>` : ""}</div>`).join("");
+}
+async function rnLoadLedger() {
+  try {
+    const r = await fetch(RN_API + "/api/ledger");
+    _rnRows = await r.json();
+    rnRenderLedger();
+  } catch (e) {
+    document.getElementById("rn-ledger").innerHTML = "Ledger connects once Render wakes up.";
+  }
+}
+rnLoadLedger();
+</script>
+
+</body></html>
