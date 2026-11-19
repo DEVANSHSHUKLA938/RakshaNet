@@ -438,14 +438,14 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
     if not txt:
         return
+    cyber_alert = _scan_cyber_url(txt)
+    if cyber_alert:
+        card = make_fact_card(txt[:180], cyber_alert)
+        await update.message.reply_photo(photo=open(card, "rb"), caption=cyber_alert)
+        return
     if not txt.startswith("http"):
         await update.message.reply_text("[Narrative] Investigating authentic sources & data...")
         try:
-            cyber_alert = _scan_cyber_url(txt)
-            if cyber_alert:
-                card = make_fact_card(txt[:180], cyber_alert)
-                await update.message.reply_photo(photo=open(card, "rb"), caption=cyber_alert)
-                return
             camp_tag = _check_campaign(txt)
             heads, fb, purl = deep_verify(txt)
             fact = ai_reason(txt, heads, fb)
