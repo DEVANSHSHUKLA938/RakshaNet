@@ -321,8 +321,19 @@ def _dual_lang_query(q):
             timeout=12,
         )
         en = r.json()["choices"][0]["message"]["content"].strip().strip("\"' ")
-        if en and len(en) > 3:
+        if en and len(en) > 3 and not any(ord(c) > 127 for c in en):
             return en
+    except Exception:
+        pass
+    try:
+        import urllib.parse as _up, requests as _rq2
+        _tr = _rq2.get(
+            f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q={_up.quote(s[:400])}",
+            timeout=6,
+        ).json()
+        en2 = "".join(x[0] for x in _tr[0] if x and x[0]).strip()
+        if en2:
+            return en2
     except Exception:
         pass
     return s
