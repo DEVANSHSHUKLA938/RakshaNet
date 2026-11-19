@@ -93,7 +93,7 @@ def make_fact_card(claim, fact):
     c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
     f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
     if len(c_clean) < 8:
-        c_clean = _dual_lang_query(claim)[:220]
+        c_clean = _dual_lang_query(claim).encode("ascii", "ignore").decode().strip()[:220] or "Regional Language Claim"
     fu = f_clean.upper()
     if "[FAKE]" in fu:
         col, badge = (200, 30, 30), "VERDICT: FAKE"
@@ -311,10 +311,10 @@ def _dual_lang_query(q):
             headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
             json={
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": f"Translate this claim to concise English search keywords (max 10 words, no quotes): {s[:300]}"}],
+                "messages": [{"role": "user", "content": f"Translate this claim into a clear English fact-check search sentence (max 12 words, no quotes): {s[:300]}"}],
                 "max_tokens": 35, "temperature": 0,
             },
-            timeout=6,
+            timeout=12,
         )
         en = r.json()["choices"][0]["message"]["content"].strip()
         if en and len(en) > 3:
