@@ -622,7 +622,7 @@ def ai_reason(claim, heads, fb, tech_flags=None):
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {k}"},
-                json={"model": mdl, "messages": [{"role": "user", "content": p}], "temperature": 0.1, "max_tokens": 220},
+                json={"model": mdl, "messages": [{"role": "user", "content": p}], "temperature": 0.1, "max_tokens": 1000},
                 timeout=20,
             )
             if resp.status_code == 200:
