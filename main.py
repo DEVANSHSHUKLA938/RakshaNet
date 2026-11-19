@@ -1139,6 +1139,19 @@ def _yt_bg(q, fact, purl):
             pass
     threading.Thread(target=_run, daemon=True).start()
 #
+async def appeals_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        rows = conn.execute("SELECT ts, msg FROM appeals ORDER BY ts DESC LIMIT 5").fetchall()
+        conn.close()
+        if not rows:
+            await update.message.reply_text("No appeals logged yet.")
+            return
+        lines = [f"{i+1}. {r[1][:120]}" for i, r in enumerate(rows)]
+        await update.message.reply_text("Latest Appeals:\n" + "\n".join(lines))
+    except Exception:
+        await update.message.reply_text("No appeals logged yet.")
+
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -1155,7 +1168,13 @@ async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.commit(); conn.close()
         except Exception:
             pass
-        await q.message.reply_text("Appeal logged for review. Thank you for helping keep RakshaNet accurate.")
+        orig = str(q.message.caption or q.message.text or "")[:200]
+        h2, fb2, _ = deep_verify(orig)
+        rf = ai_reason(orig, h2, fb2) if h2 else ""
+        if "[UNCONFIRMED]" in orig and rf and "[UNCONFIRMED]" not in rf:
+            await q.message.reply_text(f"[CORRECTION / UPDATE] {rf}")
+        else:
+            await q.message.reply_text("Appeal logged & re-verified against live Tier-1/Tier-2 sources — original verdict stands.")
     else:
         await q.edit_message_text("Ignored. Marked as safe.")
 
@@ -1165,6 +1184,7 @@ print("[RakshaNet Complete] Running with Whisper + Fact-Card + Counter-Video... 
 app = ApplicationBuilder().token(BOT_TOKEN).write_timeout(30).read_timeout(30).connect_timeout(30).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("radar", radar_cmd))
+app.add_handler(CommandHandler("appeals", appeals_cmd))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
 app.add_handler(MessageHandler(filters.VIDEO | filters.VOICE | filters.AUDIO | filters.VIDEO_NOTE, handle_media))
 app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
