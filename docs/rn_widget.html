@@ -111,7 +111,7 @@
     </div>
   </div>
   <div style="margin-top:14px;padding:12px 16px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:13.5px;">
-    <div><strong style="color:#1e3a5f;">Citizen Rating:</strong> <span style="color:#d97706;font-size:16px;">&#9733;&#9733;&#9733;&#9733;&#9733;</span> <strong id="rn-avg-r" style="color:#0f172a;">5.0 / 5</strong> <span id="rn-cnt-r" style="color:#64748b;font-size:12.5px;"></span></div>
+    <div><strong style="color:#1e3a5f;">Citizen Rating:</strong> <span id="rn-bar-stars" style="color:#94a3b8;font-size:16px;">&#9734;&#9734;&#9734;&#9734;&#9734;</span> <strong id="rn-avg-r" style="color:#0f172a;">No ratings yet</strong> <span id="rn-cnt-r" style="color:#64748b;font-size:12.5px;"></span></div>
     <button onclick="rnOpenFb(false)" style="padding:8px 16px;border-radius:6px;border:none;background:#0f766e;color:#fff;font-weight:700;cursor:pointer;font-size:13px;">Give Feedback &amp; Rate &#9733;</button>
   </div>
 </section>
@@ -151,7 +151,7 @@ async function rnVerify() {
     const col = txt.includes("[FAKE]") || txt.includes("HIGH RISK") ? "#dc2626" : (txt.includes("[VERIFIED]") || txt.includes("SAFE") ? "#16a34a" : (txt.includes("[CYBER") ? "#7e22ce" : "#475569"));
     box.style.borderLeftColor = col;
     box.innerHTML = txt.replace(/</g, "&lt;") + (d.proof ? ' <br><a href="' + d.proof + '" target="_blank" style="color:#1e3a5f;font-weight:700;">Read Official Proof &rarr;</a>' : "");
-    rnLoadLedger();
+    rnLoadLedger(); if(!localStorage.getItem('rn_fb_done') && !window._rnFbPost){window._rnFbPost=1; setTimeout(()=>rnOpenFb(false), 2000);}
   } catch (e) {
     box.innerHTML = "Server waking up (Render Free Tier) — please click Verify Now again in 20 seconds.";
   }
@@ -250,4 +250,58 @@ function rnSetLang(lang) {
     if (sel) { sel.value = lang; sel.dispatchEvent(new Event("change")); }
   }
 }
+
+let _rnStar = 5, _rnExitShown = false;
+function rnPickStar(n) {
+  _rnStar = n;
+  document.querySelectorAll("#rn-stars span").forEach((el, i) => { el.style.color = i < n ? "#f59e0b" : "#cbd5e1"; });
+}
+function rnOpenFb(isExit) {
+  const m = document.getElementById("rn-fb-modal");
+  if (!m) return;
+  document.getElementById("rn-fb-title").textContent = isExit ? "Before You Go — One Quick Feedback?" : "Share Your Feedback on RakshaNet";
+  document.getElementById("rn-fb-sub").textContent = isExit ? "Your one feedback can help us improve RakshaNet and make Digital India even safer. Thank you / Dhanyawad 🙏" : "Your one feedback helps us make RakshaNet faster, smarter, and safer for India.";
+  rnPickStar(_rnStar);
+  m.style.display = "flex";
+}
+function rnCloseFb() { const m = document.getElementById("rn-fb-modal"); if (m) m.style.display = "none"; }
+function rnPaintAvg(avg, cnt) {
+  const st = document.getElementById("rn-bar-stars"), av = document.getElementById("rn-avg-r"), cn = document.getElementById("rn-cnt-r");
+  if (!av) return;
+  if (cnt && avg > 0) {
+    const f = Math.round(avg);
+    if (st) { st.style.color = "#d97706"; st.innerHTML = "&#9733;".repeat(f) + "&#9734;".repeat(5 - f); }
+    av.textContent = avg + " / 5";
+    if (cn) cn.textContent = "(" + cnt + " reviews)";
+  } else {
+    av.textContent = "No ratings yet";
+    if (cn) cn.textContent = "";
+  }
+}
+async function rnSendFb() {
+  const cat = document.getElementById("rn-fb-cat").value;
+  const msg = document.getElementById("rn-fb-msg").value.trim();
+  localStorage.setItem("rn_fb_done", "1");
+  rnCloseFb();
+  try {
+    const r = await fetch(RN_API + "/api/feedback?stars=" + _rnStar + "&cat=" + encodeURIComponent(cat) + "&msg=" + encodeURIComponent(msg) + "&t=" + Date.now());
+    const d = await r.json();
+    rnPaintAvg(d.avg, d.count);
+  } catch (e) {}
+  alert("Thank you for your valuable feedback! Dhanyawad 🙏");
+}
+async function rnLoadRating() {
+  try {
+    const r = await fetch(RN_API + "/api/feedback");
+    const d = await r.json();
+    rnPaintAvg(d.avg, d.count);
+  } catch (e) {}
+}
+document.addEventListener("mouseleave", (e) => {
+  if (e.clientY <= 5 && !_rnExitShown && !localStorage.getItem("rn_fb_done")) {
+    _rnExitShown = true;
+    rnOpenFb(true);
+  }
+});
+rnLoadRating();
 </script>

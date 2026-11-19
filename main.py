@@ -1385,7 +1385,7 @@ def _handle_feedback(qs):
         for d in ("5★", "4★", "3★", "2★", "1★"):
             if d in x:
                 nums.append(int(d[0])); break
-    avg = round(sum(nums) / len(nums), 1) if nums else 5.0
+    avg = round(sum(nums) / len(nums), 1) if nums else 0
     return {"ok": True, "avg": avg, "count": len(nums)}
 
 async def feedback_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
