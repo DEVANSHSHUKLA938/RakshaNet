@@ -89,26 +89,39 @@ def get_speech(vid_path):
     return " ".join(parts).strip()
 
 def make_fact_card(claim, fact):
-    import re as _rc
+    import re as _rc, time as _tc
     c_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(claim).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
     f_clean = _rc.sub(r"\s+", " ", _rc.sub(r"[\u2010-\u2015]", "-", str(fact).replace("₹", "Rs."))).encode("ascii", "ignore").decode().strip()
+    fu = f_clean.upper()
+    if "[FAKE]" in fu:
+        col, badge = (200, 30, 30), "VERDICT: FAKE"
+    elif "[VERIFIED]" in fu:
+        col, badge = (25, 135, 65), "VERDICT: VERIFIED"
+    elif "[MISLEADING]" in fu:
+        col, badge = (215, 115, 20), "VERDICT: MISLEADING"
+    elif "[CYBER THREAT]" in fu:
+        col, badge = (120, 40, 165), "VERDICT: CYBER THREAT"
+    else:
+        col, badge = (95, 105, 115), "VERDICT: UNCONFIRMED"
     img = Image.new("RGB", (1080, 1080), (255, 255, 255))
     d = ImageDraw.Draw(img)
     d.rectangle([(0, 0), (1080, 110)], fill=(20, 20, 20))
-    d.rectangle([(0, 110), (1080, 120)], fill=(200, 30, 30))
-    f_h, f_b, f_t = ImageFont.load_default(size=40), ImageFont.load_default(size=32), ImageFont.load_default(size=26)
+    d.rectangle([(0, 110), (1080, 124)], fill=col)
+    f_h, f_b, f_t = ImageFont.load_default(size=40), ImageFont.load_default(size=30), ImageFont.load_default(size=24)
     d.text((50, 32), "RAKSHANET | FACT & NARRATIVE CHECK", fill=(255, 255, 255), font=f_h)
-    d.text((50, 170), "VIRAL CLAIM:", fill=(200, 30, 30), font=f_t)
-    d.text((50, 215), textwrap.fill(c_clean[:220], width=42), fill=(20, 20, 20), font=f_b)
-    d.line([(50, 480), (1030, 480)], fill=(220, 220, 220), width=3)
-    d.text((50, 520), "VERIFIED REFERENCE:", fill=(20, 100, 40), font=f_t)
-    d.text((50, 565), textwrap.fill(f_clean[:320], width=42), fill=(20, 20, 20), font=f_b)
-    d.text((50, 990), "RakshaNet Open-Source Desk | Verify Before Sharing", fill=(110, 110, 110), font=f_t)
+    d.rectangle([(50, 150), (470, 205)], fill=col)
+    d.text((68, 164), badge, fill=(255, 255, 255), font=f_t)
+    d.text((50, 230), "VIRAL CLAIM:", fill=col, font=f_t)
+    d.text((50, 270), textwrap.fill(c_clean[:220], width=42), fill=(20, 20, 20), font=f_b)
+    d.line([(50, 500), (1030, 500)], fill=(220, 220, 220), width=3)
+    d.text((50, 535), "VERIFIED REFERENCE:", fill=(20, 100, 40), font=f_t)
+    d.text((50, 575), textwrap.fill(f_clean[:320], width=42), fill=(20, 20, 20), font=f_b)
+    d.text((50, 995), "RakshaNet Open-Source Desk | Verify Before Sharing", fill=(110, 110, 110), font=f_t)
     os.makedirs("output", exist_ok=True)
-    out = "output/fact_card.png"
+    out = f"output/fact_card_{int(_tc.time()*1000)}.png"
     img.save(out)
     return out
-#
+
 def build_counter(url, score, reason, dur=20):
     raw, banner, out = "temp/c_raw.mp4", "temp/c_ban.png", "output/counter_live.mp4"
     os.makedirs("temp", exist_ok=True)
@@ -206,6 +219,44 @@ async def radar_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lines.append(f"• {kw}: {feed.entries[0].title}")
     await update.message.reply_text("\n".join(lines) or "No new items found.")
 
+
+def _scan_cyber_url(txt):
+    import re as _ru
+    urls = _ru.findall(r"https?://[^\s<>\"']+", str(txt or ""))
+    if not urls:
+        return None
+    bad_ext = (".apk", ".exe", ".bat", ".scr", ".vbs")
+    lookalikes = ("pmkisan", "pm-kisan", "uidai", "aadhaar", "epfo", "incometax", "sbi", "hdfc", "icici", "rbi", "echallan", "parivahan", "india-post", "indiapost", "gov-in")
+    official = (".gov.in", ".nic.in", ".rbi.org.in", ".sbi.co.in", ".onlinesbi.sbi", ".uidai.gov.in", ".parivahan.gov.in", ".epfindia.gov.in")
+    for u in urls:
+        lu = u.lower().split("?")[0]
+        dom = lu.split("//", 1)[-1].split("/")[0].split(":")[0]
+        if lu.endswith(bad_ext):
+            return "[CYBER THREAT] Suspicious executable/APK download link detected. Do NOT install unknown APKs; report cyber fraud at cybercrime.gov.in or call 1930."
+        if any(k in dom for k in lookalikes) and not any(dom.endswith(o) or dom == o.lstrip(".") for o in official):
+            return f"[CYBER THREAT] Suspected phishing/lookalike domain ({dom}) impersonating an official Indian service. Verify only on official .gov.in/.nic.in portals and report at cybercrime.gov.in (1930)."
+    return None
+
+def _check_campaign(txt):
+    import re as _rc, time as _tm
+    toks = sorted(set(_rc.findall(r"[a-z0-9]{4,}", str(txt or "").lower())))[:5]
+    if len(toks) < 2:
+        return ""
+    sig = "|".join(toks)
+    now = int(_tm.time())
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("CREATE TABLE IF NOT EXISTS campaign_log (sig TEXT, ts INT)")
+        conn.execute("DELETE FROM campaign_log WHERE ts < ?", (now - 86400,))
+        conn.execute("INSERT INTO campaign_log (sig, ts) VALUES (?, ?)", (sig, now))
+        cnt = conn.execute("SELECT COUNT(*) FROM campaign_log WHERE sig=?", (sig,)).fetchone()[0]
+        conn.commit()
+        conn.close()
+        if cnt >= 3:
+            return f"[COORDINATED CAMPAIGN ALERT: {cnt} similar reports in 24h] "
+    except Exception:
+        pass
+    return ""
 
 def deep_verify(claim):
     import os, re as _re, urllib.parse, requests as _rq, feedparser
@@ -390,8 +441,16 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not txt.startswith("http"):
         await update.message.reply_text("[Narrative] Investigating authentic sources & data...")
         try:
+            cyber_alert = _scan_cyber_url(txt)
+            if cyber_alert:
+                card = make_fact_card(txt[:180], cyber_alert)
+                await update.message.reply_photo(photo=open(card, "rb"), caption=cyber_alert)
+                return
+            camp_tag = _check_campaign(txt)
             heads, fb, purl = deep_verify(txt)
             fact = ai_reason(txt, heads, fb)
+            if camp_tag and "[UNCONFIRMED]" not in fact:
+                fact = f"{camp_tag}{fact}"
             if fact.startswith("[CASUAL]"):
                 await update.message.reply_text("Please send a news claim, photo/screenshot, voice note, or video link to verify.")
                 return
