@@ -319,7 +319,7 @@ def _dual_lang_query(q):
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {gk}", "Content-Type": "application/json"},
             json={
-                "model": "llama-3.1-8b-instant",
+                "model": "openai/gpt-oss-120b",
                 "messages": [{"role": "user", "content": f"Translate this claim into a clear English fact-check search sentence (max 12 words, no quotes): {s[:300]}"}],
                 "max_tokens": 80, "temperature": 0,
             },
@@ -564,7 +564,7 @@ def ai_reason(claim, heads, fb, tech_flags=None):
         "6) Reply in 2 crisp English sentences citing the exact Clean Publisher Name, Confidence Tier (Tier 1/Tier 1F/Tier 2), and key date/figure. End with: "
         f"(Case: {case_id} | {ist_now}). If [FAKE] involves a financial scam, fake govt scheme, or officer impersonation, add: Report fraud at cybercrime.gov.in / 1930 or sancharsaathi.gov.in."
     )
-    for mdl in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"):
+    for mdl in ("openai/gpt-oss-120b", "llama-3.3-70b-versatile"):
         try:
             resp = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
@@ -1174,9 +1174,15 @@ async def roundup_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No verified cases in today's ledger yet.")
         return
     await update.message.reply_text("Building Daily Round-Up Short...")
-    summary = " | ".join(f"{r.get('verdict','')}: {r.get('summary','')[:70]}" for r in rows)
-    v = build_pro_short("ALERT", "Daily Fact-Check Round-Up", summary)
-    await update.message.reply_video(video=open(v, "rb"), caption="RakshaNet Daily Round-Up Short")
+    try:
+        summary = " | ".join(f"{r.get('verdict','')}: {r.get('summary','')[:70]}" for r in rows)
+        v = build_pro_short("ALERT", "Daily Fact-Check Round-Up", summary)
+        if _or.path.exists(v):
+            await update.message.reply_video(video=open(v, "rb"), caption="RakshaNet Daily Round-Up Short")
+        else:
+            await update.message.reply_text("Video file not created on server.")
+    except Exception as _re:
+        await update.message.reply_text(f"Round-Up error: {_re}")
 
 async def button_tap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
