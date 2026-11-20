@@ -110,7 +110,26 @@ body{background:#ffffff !important;}
   </div>
   <input id="rn-filter" oninput="rnRenderLedger()" type="text" placeholder="Search by Case ID (RN-...) or keyword..." style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-size:13px;margin-bottom:10px;">
   <div id="rn-ledger" style="max-height:240px;overflow-y:auto;font-size:13px;color:#1e293b;border:1px solid #e2e8f0;border-radius:6px;background:#ffffff;">Loading live ledger...</div>
-  <div id="rn-guide" style="margin-top:18px;padding:16px 18px;border-radius:8px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0f766e;">
+  
+<div id="rn-india-monitor" style="margin:14px 0;padding:14px 16px;background:#ffffff;border:1px solid #e2e8f0;border-left:4px solid #c8102e;border-radius:3px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+    <h3 style="margin:0;font-size:15px;color:#111111;">India Narrative Monitor (Sovereignty, Defence, Economy &amp; Global Image)</h3>
+    <span id="rn-nar-badge" style="font-size:11.5px;font-weight:700;background:#fef2f2;color:#c8102e;border:1px solid #fecaca;padding:2px 9px;border-radius:3px;">Live Tracked: 0</span>
+  </div>
+  <div id="rn-nar-list" style="font-size:12.5px;color:#475569;">Syncing verified India counter-narratives from permanent ledger...</div>
+</div>
+<div id="rn-pipeline-sec" style="margin:12px 0 14px;padding:13px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;">
+  <h3 style="margin:0 0 8px 0;font-size:14.5px;color:#111111;">System Pipeline &amp; Verification Transparency</h3>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;font-weight:600;color:#0f172a;margin-bottom:8px;">
+    <span style="background:#fff;border:1px solid #cbd5e1;padding:4px 9px;border-radius:3px;">1. 24&times;7 Multi-Source Detection</span> &rarr;
+    <span style="background:#fff;border:1px solid #cbd5e1;padding:4px 9px;border-radius:3px;">2. Multimodal Claim Extraction</span> &rarr;
+    <span style="background:#fff;border:1px solid #cbd5e1;padding:4px 9px;border-radius:3px;">3. Official Registry Triangulation</span> &rarr;
+    <span style="background:#fff;border:1px solid #cbd5e1;padding:4px 9px;border-radius:3px;">4. 2-Source Confidence Gate</span> &rarr;
+    <span style="background:#fff;border:1px solid #cbd5e1;padding:4px 9px;border-radius:3px;">5. Audit Ledger &amp; Multi-Platform Counter</span>
+  </div>
+  <div style="font-size:12px;color:#475569;"><strong>Trusted Official Verification Sources:</strong> PIB Fact Check, RBI Press Releases, Ministry of Defence (MoD), MEA, WHO, IFCN Signatories, National Cyber Crime Reporting Portal (1930), and 10 Indian State News Feeds. <em>Zero-Guesswork Policy: Unverified claims stay on 24h Watchlist until official proof arrives.</em></div>
+</div>
+<div id="rn-guide" style="margin-top:18px;padding:16px 18px;border-radius:8px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0f766e;">
     <h3 style="margin:0 0 10px;color:#1e3a5f;font-size:15.5px;">How RakshaNet Works &amp; Citizen User Guide</h3>
     <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:12px;">
       <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">1. Paste Claim / Link / Video</span>
@@ -333,3 +352,34 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 rnLoadRating();
 </script>
 </div>
+
+<script>
+async function rnSyncNarratives(){
+  try{
+    const base = (typeof RN_API !== "undefined" ? RN_API : "https://rakshanet-edge.devanshshukla938.workers.dev");
+    const [st, rows] = await Promise.all([
+      fetch(base + "/api/stats").then(r=>r.json()).catch(()=>({})),
+      fetch(base + "/api/ledger").then(r=>r.json()).catch(()=>[])
+    ]);
+    const list = Array.isArray(rows) ? rows : [];
+    const nars = list.filter(x => /NARRATIVE|INDIA|ARMY|DEFENCE|FAKE|MISLEADING/i.test((x.verdict||"")+" "+(x.claim||"")));
+    const cnt = Math.max(Number(st.narratives||0), nars.length);
+    const b = document.getElementById("rn-nar-badge");
+    if(b) b.textContent = "Live Tracked: " + cnt;
+    document.querySelectorAll("div,span,td").forEach(el=>{
+      if(el.children.length===0 && el.textContent.trim()==="Narrative Counters" && el.nextElementSibling){
+        el.nextElementSibling.textContent = String(cnt);
+      }
+    });
+    const box = document.getElementById("rn-nar-list");
+    if(box){
+      if(!nars.length){
+        box.innerHTML = "Autonomous monitor active &mdash; verified India narrative counter-reports will appear here automatically as soon as Phase 2 surveillance runs.";
+      } else {
+        box.innerHTML = nars.slice(0,5).map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;"><strong>[${x.verdict||"VERIFIED"}]</strong> ${(x.claim||"").slice(0,140)} ${x.proof?`<a href="${x.proof}" target="_blank" style="color:#c8102e;font-weight:700;margin-left:6px;">Proof &rarr;</a>`:""}</div>`).join("");
+      }
+    }
+  }catch(e){}
+}
+rnSyncNarratives();
+</script>

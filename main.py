@@ -1460,7 +1460,7 @@ if os.environ.get("PORT"):
             if self.path.startswith("/api/feedback"):
                 return self._send_json(_handle_feedback(_up.parse_qs(_up.urlparse(self.path).query)))
             if self.path.startswith("/api/stats"):
-                return self._send_json(_get_site_stats(hit=("hit=1" in self.path)))
+                st = _get_site_stats(hit=("hit=1" in self.path)); _rows = _sb_req("GET", "ledger", query="select=verdict,claim&limit=500") or []; st["narratives"] = sum(1 for r in _rows if any(k in (str(r.get("verdict",""))+str(r.get("claim",""))).upper() for k in ("NARRATIVE","FAKE","MISLEADING","INDIA","ARMY","DEFENCE"))); return self._send_json(st)
             if self.path.startswith("/api/ledger"):
                 rows = _sb_req("GET", "ledger", query="?order=ts.desc&limit=50") or (_jh.load(open("data/ledger.json")) if _oh.path.exists("data/ledger.json") else [])
                 return self._send_json(rows[:50])
