@@ -497,6 +497,7 @@ window._rnSocial = function(txt, prf, yt, ig) {
   var s = ' style="font-size:11.5px;font-weight:700;margin-left:8px;text-decoration:none;color:#334155;" target="_blank" rel="noopener"';
   return '<a href="'+xu+'"'+s+'>X &#8599;</a><a href="'+yu+'"'+s+'>YouTube &#8599;</a><a href="'+iu+'"'+s+'>Instagram &#8599;</a>';
 };
+if(typeof rnSyncNarratives==="function")rnSyncNarratives();
 setTimeout(function(){
   document.querySelectorAll('#rn-ledger a, table a').forEach(function(a){
     if (/proof|source|verify/i.test(a.textContent||"") && !a.dataset.rnSoc) {
