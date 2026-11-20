@@ -1550,12 +1550,65 @@ async def _rn_run_surveillance_cycle():
             clean_tag = f"[{cat}] Claim: {raw_h[:135]} (via {pub})"
             print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {clean_tag[:70]}", flush=True)
             _log_ledger("AUTO", v, clean_tag, proof)
+            if v in ("FAKE","MISLEADING","CYBER THREAT") and _RN_VID_COUNT["n"] < 3: asyncio.create_task(_rn_auto_counter_video(v, raw_h, str(res or raw_h)[:260], src, proof))
             if tok:
                 msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
                 try: await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"), 10)
                 except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
             await asyncio.sleep(6)
         except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
+
+
+# === PHASE 3: AUTONOMOUS COUNTER-VIDEO + 5-MIN ADMIN SAFETY PREVIEW ===
+_RN_VID_COUNT = {"day": "", "n": 0}
+_RN_CANCEL_NEXT = False
+
+async def _rn_auto_counter_video(verdict, title, summary, src, proof):
+    import asyncio, datetime, json, os, urllib.request
+    global _RN_CANCEL_NEXT
+    today = datetime.date.today().isoformat()
+    if _RN_VID_COUNT["day"] != today:
+        _RN_VID_COUNT["day"], _RN_VID_COUNT["n"] = today, 0
+    if _RN_VID_COUNT["n"] >= 3:
+        return ""
+    if "build_pro_short" not in globals() or "upload_to_youtube" not in globals():
+        return ""
+    tok = os.getenv("BOT_TOKEN", "") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    adm = os.getenv("ADMIN_ID", "") or os.getenv("OWNER_ID", "")
+    _RN_CANCEL_NEXT = False
+    if tok and adm:
+        prev = f"⏳ [5-MIN SAFETY PREVIEW]\nAuto Counter-Video queued for YouTube:\n[{verdict}] {title[:120]}\nReply /cancel_auto within 5 min to hold, else it auto-publishes."
+        try:
+            await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": adm, "text": prev}).encode(), headers={"Content-Type": "application/json"}, method="POST"), 10)
+            await asyncio.sleep(300)
+        except Exception:
+            pass
+    if _RN_CANCEL_NEXT:
+        print("[PHASE 3] Auto Counter-Video cancelled by Admin.", flush=True)
+        return ""
+    try:
+        vid_path = await asyncio.to_thread(build_pro_short, f"[{verdict}] {title[:90]}", summary[:240], verdict)
+        if not vid_path or not os.path.exists(vid_path):
+            return ""
+        clean_t = f"[{verdict}] {title[:70]} #Shorts #RakshaNetIndia"
+        desc = f"Verified Fact-Check by RakshaNet India (Founder: Devansh Shukla)\n\nClaim: {title[:180]}\nFact: {summary[:300]}\n\nOriginal Source: {src}\nOfficial Proof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/\nCyber Helpline: 1930"
+        yt_id = await asyncio.to_thread(upload_to_youtube, vid_path, clean_t, desc)
+        try: os.remove(vid_path)
+        except Exception: pass
+        if yt_id:
+            _RN_VID_COUNT["n"] += 1
+            yt_url = f"https://youtube.com/shorts/{yt_id}"
+            print(f"[PHASE 3] Auto Counter-Video LIVE: {yt_url}", flush=True)
+            _log_ledger("VIDEO", verdict, f"[COUNTER VIDEO] {title[:130]}", yt_url)
+            if tok:
+                vmsg = f"🎬 [COUNTER-VIDEO LIVE] [{verdict}]\n{title[:160]}\n▶️ Watch: {yt_url}\n🔗 Proof: {proof}"
+                try: await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": "@RakshaNet_India", "text": vmsg}).encode(), headers={"Content-Type": "application/json"}, method="POST"), 10)
+                except Exception: pass
+            return yt_url
+    except Exception as _e:
+        print("[PHASE 3 ERR]", _e, flush=True)
+    return ""
+# === /PHASE 3 ===
 
 async def _rn_auto_surveillance_loop():
     import asyncio
