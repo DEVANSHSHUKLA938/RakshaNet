@@ -426,7 +426,7 @@ window._rnSocial = function(txt, prf, yt, ig) {
   var q = encodeURIComponent((txt||"Verified Fact-Check").slice(0,140) + " " + (prf||"https://devanshshukla938.github.io/RakshaNet/") + " #RakshaNetIndia");
   var xu = "https://twitter.com/intent/tweet?text=" + q;
   var yu = (yt && /^https?:/.test(yt)) ? yt : "https://www.youtube.com/@RakshaNetIndia/shorts";
-  var iu = (ig && /^https?:/.test(ig)) ? ig : "https://www.instagram.com/rakshanetindia/";
+  var iu = (ig && /^https?:/.test(ig)) ? ig : "https://www.instagram.com/rakshanet_india/";
   var s = ' style="font-size:11.5px;font-weight:700;margin-left:8px;text-decoration:none;color:#334155;" target="_blank" rel="noopener"';
   return '<a href="'+xu+'"'+s+'>X &#8599;</a><a href="'+yu+'"'+s+'>YouTube &#8599;</a><a href="'+iu+'"'+s+'>Instagram &#8599;</a>';
 };
