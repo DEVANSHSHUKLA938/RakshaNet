@@ -296,7 +296,7 @@ function rnOpenFb(isExit) {
   const m = document.getElementById("rn-fb-modal");
   if (!m) return;
   const _rnRep = !!localStorage.getItem("rn_fb_done"); document.getElementById("rn-fb-title").textContent = isExit ? (_rnRep ? "Welcome Back — Any New Suggestion?" : "Before You Go — One Quick Feedback?") : "Share Your Feedback on RakshaNet";
-  document.getElementById("rn-fb-sub").textContent = isExit ? (_rnRep ? "Totally optional — just a gentle reminder! If you noticed anything new today, feel free to share. Thank you / Dhanyawad 🙏" : "Your one feedback can help us improve RakshaNet and make Digital India even safer. Thank you / Dhanyawad 🙏") : "Your one feedback helps us make RakshaNet faster, smarter, and safer for India.";
+  document.getElementById("rn-fb-sub").textContent = isExit ? (_rnRep ? "Just a gentle reminder! If you noticed anything new today, feel free to share. Thank you / Dhanyawad 🙏" : "Your one feedback can help us improve RakshaNet and make Digital India even safer. Thank you / Dhanyawad 🙏") : "Your one feedback helps us make RakshaNet faster, smarter, and safer for India.";
   rnPickStar(_rnStar);
   m.style.display = "flex";
 }
@@ -460,3 +460,16 @@ setTimeout(function(){
 <a class="rn-fbtn" href="https://www.instagram.com/rakshanet_india/" target="_blank" title="Instagram @rakshanet_india"><svg viewBox="0 0 24 24" fill="#E1306C"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 011.25 1.25A1.25 1.25 0 0117.25 8 1.25 1.25 0 0116 6.75a1.25 1.25 0 011.25-1.25M12 7a5 5 0 015 5 5 5 0 01-5 5 5 5 0 01-5-5 5 5 0 015-5m0 2a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3z"/></svg></a>
 <a class="rn-fbtn" href="https://x.com/RakshaNetIndia" target="_blank" title="X @RakshaNetIndia"><svg viewBox="0 0 24 24" fill="#000"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
 </div>
+
+<style>
+#rn-fb-modal{background:rgba(15,23,42,.38)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+#rn-fb-modal > div{background:rgba(15,23,42,.74)!important;backdrop-filter:blur(22px) saturate(160%)!important;-webkit-backdrop-filter:blur(22px) saturate(160%)!important;border:1px solid rgba(255,255,255,.22)!important;border-top:3px solid #c8102e!important;border-radius:18px!important;padding:28px 30px!important;box-shadow:0 24px 60px rgba(0,0,0,.42)!important;color:#fff!important;max-width:450px!important;width:92%!important}
+#rn-fb-modal h2,#rn-fb-modal h3,#rn-fb-modal label{color:#fff!important;font-weight:700!important}
+#rn-fb-modal p{color:#e2e8f0!important;font-size:13.5px!important;line-height:1.5!important}
+#rn-fb-modal select,#rn-fb-modal textarea{background:rgba(255,255,255,.12)!important;color:#fff!important;border:1px solid rgba(255,255,255,.24)!important;border-radius:10px!important;padding:10px 12px!important}
+#rn-fb-modal select option{background:#0f172a!important;color:#fff!important}
+#rn-fb-modal textarea::placeholder{color:#cbd5e1!important}
+#rn-fb-modal button{border-radius:999px!important;font-weight:700!important;padding:9px 18px!important}
+#rn-fb-modal button:first-of-type{background:rgba(255,255,255,.16)!important;color:#fff!important;border:1px solid rgba(255,255,255,.25)!important}
+#rn-fb-modal button:last-of-type{background:#c8102e!important;color:#fff!important;border:none!important}
+</style>
