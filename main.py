@@ -1495,7 +1495,7 @@ _RN_RADARS = [
     ("NARRATIVE COUNTER", "https://news.google.com/rss/search?q=(%22Indian+Army%22+OR+%22India%22+OR+%22MEA%22+OR+%22Kashmir%22)+(%22fake+claim%22+OR+%22debunked%22+OR+%22false+claim%22+OR+%22misleading%22)&hl=en-IN&gl=IN&ceid=IN:en"),
     ("FACT-CHECK", "https://news.google.com/rss/search?q=(%22PIB+Fact+Check%22+OR+%22fact+check%22+OR+%22viral+video%22+fake)+India&hl=en-IN&gl=IN&ceid=IN:en"),
     ("CYBER THREAT", "https://news.google.com/rss/search?q=(%22cyber+fraud%22+OR+%22fake+APK%22+OR+%22RBI+warning%22+OR+%22UPI+scam%22)+India&hl=en-IN&gl=IN&ceid=IN:en"),
-    ("RAW VIRAL MONITOR", "https://www.reddit.com/r/india/search.rss?q=fake+OR+scam+OR+misleading+OR+propaganda&sort=new&restrict_sr=1"),
+    ("RAW VIRAL MONITOR", "https://news.google.com/rss/search?q=(%22viral+on+X%22+OR+%22viral+on+Instagram%22+OR+%22viral+on+WhatsApp%22)+(%22fake%22+OR+%22scam%22+OR+%22misleading%22)+India&hl=en-IN&gl=IN&ceid=IN:en"),
     ("RAW VIDEO MONITOR", "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw"),
 ]
 _RN_SEEN = set()
@@ -1553,7 +1553,7 @@ async def _rn_run_surveillance_cycle():
             if v in ("FAKE","MISLEADING","CYBER THREAT") and _RN_VID_COUNT["n"] < 3: asyncio.create_task(_rn_auto_counter_video(v, raw_h, str(res or raw_h)[:260], src, proof))
             if tok:
                 msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
-                try: await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"), 10)
+                try: await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=10), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"))
                 except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
             await asyncio.sleep(6)
         except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
@@ -1579,7 +1579,7 @@ async def _rn_auto_counter_video(verdict, title, summary, src, proof):
     if tok and adm:
         prev = f"⏳ [5-MIN SAFETY PREVIEW]\nAuto Counter-Video queued for YouTube:\n[{verdict}] {title[:120]}\nReply /cancel_auto within 5 min to hold, else it auto-publishes."
         try:
-            await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": adm, "text": prev}).encode(), headers={"Content-Type": "application/json"}, method="POST"), 10)
+            await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=10), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": adm, "text": prev}).encode(), headers={"Content-Type": "application/json"}, method="POST"))
             await asyncio.sleep(300)
         except Exception:
             pass
@@ -1602,7 +1602,7 @@ async def _rn_auto_counter_video(verdict, title, summary, src, proof):
             _log_ledger("VIDEO", verdict, f"[COUNTER VIDEO] {title[:130]}", yt_url)
             if tok:
                 vmsg = f"🎬 [COUNTER-VIDEO LIVE] [{verdict}]\n{title[:160]}\n▶️ Watch: {yt_url}\n🔗 Proof: {proof}"
-                try: await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": "@RakshaNet_India", "text": vmsg}).encode(), headers={"Content-Type": "application/json"}, method="POST"), 10)
+                try: await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=10), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": "@RakshaNet_India", "text": vmsg}).encode(), headers={"Content-Type": "application/json"}, method="POST"))
                 except Exception: pass
             return yt_url
     except Exception as _e:
