@@ -427,14 +427,15 @@ async function rnSyncNarratives(){
     const b=(typeof RN_API!=="undefined"?RN_API:"https://rakshanet-edge.devanshshukla938.workers.dev");
     const rows=await fetch(b+"/api/ledger?t="+Date.now()).then(r=>r.json()).catch(()=>[]);
     const list=Array.isArray(rows)?rows:[];
-    const txt=x=>String(x.claim||x.text||x.q||x.title||"");
+    const txt=x=>String(x.summary||x.claim||x.text||x.q||x.title||"");
     const vrd=x=>String(x.verdict||x.tag||x.v||"VERIFIED");
     const prf=x=>String(x.proof||x.proof_url||x.source_url||x.u||"");
     const nars=list.filter(x=>/NARRATIVE|INDIA|ARMY|AIR FORCE|DEFENCE|RAFALE|FAKE|MISLEADING/i.test(vrd(x)+" "+txt(x)));
     const fakes=list.filter(x=>/FAKE|MISLEADING/i.test(vrd(x)));
     const cybs=list.filter(x=>/CYBER/i.test(vrd(x)+" "+txt(x)));
     const setNum=(id,n)=>{const e=document.getElementById(id);if(e&&n>0)e.textContent=String(n);};
-    setNum("rn-st-claims",list.length); setNum("rn-st-fake",fakes.length); setNum("rn-st-cyber",cybs.length);
+    const mapLbl={"CLAIMS VERIFIED":list.length,"FAKE CAUGHT":fakes.length,"CYBER THREATS":cybs.length};
+    document.querySelectorAll("div,span").forEach(el=>{const k=el.textContent.trim().toUpperCase();if(el.children.length===0&&mapLbl[k]!==undefined&&el.nextElementSibling)el.nextElementSibling.textContent=String(mapLbl[k]);});
     const bd=document.getElementById("rn-nar-badge"); if(bd) bd.textContent="Live Tracked: "+nars.length;
     document.querySelectorAll("div,span,td").forEach(el=>{
       if(el.children.length===0&&el.textContent.trim()==="Narrative Counters"&&el.nextElementSibling) el.nextElementSibling.textContent=String(nars.length);

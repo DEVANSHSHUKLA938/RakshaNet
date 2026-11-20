@@ -1495,6 +1495,8 @@ _RN_RADARS = [
     ("NARRATIVE COUNTER", "https://news.google.com/rss/search?q=(%22Indian+Army%22+OR+%22India%22+OR+%22MEA%22+OR+%22Kashmir%22)+(%22fake+claim%22+OR+%22debunked%22+OR+%22false+claim%22+OR+%22misleading%22)&hl=en-IN&gl=IN&ceid=IN:en"),
     ("FACT-CHECK", "https://news.google.com/rss/search?q=(%22PIB+Fact+Check%22+OR+%22fact+check%22+OR+%22viral+video%22+fake)+India&hl=en-IN&gl=IN&ceid=IN:en"),
     ("CYBER THREAT", "https://news.google.com/rss/search?q=(%22cyber+fraud%22+OR+%22fake+APK%22+OR+%22RBI+warning%22+OR+%22UPI+scam%22)+India&hl=en-IN&gl=IN&ceid=IN:en"),
+    ("RAW VIRAL MONITOR", "https://www.reddit.com/r/india/search.rss?q=fake+OR+scam+OR+misleading+OR+propaganda&sort=new&restrict_sr=1"),
+    ("RAW VIDEO MONITOR", "https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw"),
 ]
 _RN_SEEN = set()
 
