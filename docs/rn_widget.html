@@ -465,17 +465,46 @@ setTimeout(function(){
 
 
 
+
+
 <style>
-html body #rn-fb-modal{background:rgba(255,255,255,.35)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;padding:16px!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important}
-html body #rn-fb-modal > div{background-color:rgba(16,18,26,.90)!important;background-image:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border:1px solid rgba(255,255,255,.22)!important;border-top:3px solid #c8102e!important;border-radius:20px!important;padding:30px 28px!important;box-shadow:0 28px 70px rgba(0,0,0,.48)!important;color:#fff!important;max-width:395px!important;width:92%!important;box-sizing:border-box!important;text-align:left!important}
 html body #rn-fb-modal h2,html body #rn-fb-modal h3{color:#fff!important;font-size:23px!important;line-height:1.25!important;font-weight:800!important;margin:0 0 10px!important}
 html body #rn-fb-modal p{color:#e2e8f0!important;font-size:13.5px!important;line-height:1.5!important;margin:0 0 16px!important}
 html body #rn-fb-modal label{display:block!important;color:#fff!important;font-size:13px!important;font-weight:700!important;margin:14px 0 6px!important}
-html body #rn-fb-modal select,html body #rn-fb-modal textarea{width:100%!important;box-sizing:border-box!important;background:rgba(255,255,255,.12)!important;color:#fff!important;border:1px solid rgba(255,255,255,.26)!important;border-radius:10px!important;padding:10px 12px!important;font-size:13.5px!important;outline:none!important}
+html body #rn-fb-modal select,html body #rn-fb-modal textarea{width:100%!important;box-sizing:border-box!important;background:rgba(255,255,255,.12)!important;color:#fff!important;border:1px solid rgba(255,255,255,.26)!important;border-radius:10px!important;padding:10px 12px!important;font-size:13.5px!important}
 html body #rn-fb-modal select option{background:#0f172a!important;color:#fff!important}
-html body #rn-fb-modal textarea{min-height:84px!important;resize:vertical!important}
+html body #rn-fb-modal textarea{min-height:84px!important}
 html body #rn-fb-modal textarea::placeholder{color:#cbd5e1!important}
 html body #rn-fb-modal button{border-radius:999px!important;font-weight:700!important;font-size:13.5px!important;padding:9px 20px!important;cursor:pointer!important;margin-top:16px!important}
 html body #rn-fb-modal button:first-of-type{background:rgba(255,255,255,.18)!important;color:#fff!important;border:1px solid rgba(255,255,255,.28)!important;margin-right:8px!important}
 html body #rn-fb-modal button:last-of-type{background:#c8102e!important;color:#fff!important;border:none!important;box-shadow:0 4px 14px rgba(200,16,46,.45)!important}
 </style>
+<script>/*RN_FB_GLASS*/
+(function(){
+  function applyGlass(){
+    var m = document.getElementById("rn-fb-modal");
+    if(!m) return;
+    var s = m.style;
+    s.setProperty("background","rgba(255,255,255,0.35)","important");
+    s.setProperty("backdrop-filter","blur(10px)","important");
+    s.setProperty("-webkit-backdrop-filter","blur(10px)","important");
+    s.setProperty("font-family","-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif","important");
+    var c = m.firstElementChild;
+    if(c){
+      var cs = c.style;
+      cs.setProperty("background","linear-gradient(180deg,rgba(12,14,20,0.93) 0%,rgba(20,24,33,0.86) 65%,rgba(30,35,46,0.80) 100%)","important");
+      cs.setProperty("border","1px solid rgba(255,255,255,0.22)","important");
+      cs.setProperty("border-top","3px solid #c8102e","important");
+      cs.setProperty("border-radius","20px","important");
+      cs.setProperty("padding","30px 28px","important");
+      cs.setProperty("box-shadow","0 28px 70px rgba(0,0,0,0.48)","important");
+      cs.setProperty("color","#ffffff","important");
+      cs.setProperty("max-width","395px","important");
+      cs.setProperty("width","92%","important");
+      cs.setProperty("box-sizing","border-box","important");
+      cs.setProperty("text-align","left","important");
+    }
+  }
+  applyGlass(); setTimeout(applyGlass, 400); setTimeout(applyGlass, 1200);
+})();
+</script>
