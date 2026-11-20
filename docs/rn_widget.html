@@ -381,3 +381,42 @@ async function rnSyncNarratives(){
 }
 rnSyncNarratives();
 </script>
+
+<script>
+(function(){
+  let _rnShow = 8;
+  const applyPage = () => {
+    const box = document.getElementById("rn-ledger") || document.getElementById("rn-ledger-list");
+    if (!box) return;
+    const items = Array.from(box.children).filter(c => c.id !== "rn-more-btn");
+    items.forEach((el, i) => { el.style.display = i < _rnShow ? "" : "none"; });
+    let btn = document.getElementById("rn-more-btn");
+    if (items.length > _rnShow) {
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.id = "rn-more-btn";
+        btn.style.cssText = "margin-top:8px;padding:6px 14px;background:#111;color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer;";
+        btn.onclick = () => { _rnShow += 10; applyPage(); };
+        box.appendChild(btn);
+      }
+      btn.textContent = "Load More Cases (" + (items.length - _rnShow) + " more) ↓";
+      btn.style.display = "inline-block";
+    } else if (btn) { btn.style.display = "none"; }
+  };
+  setInterval(applyPage, 1200);
+  window.rnServerSearch = async function(q){
+    const b = (typeof RN_API !== "undefined" ? RN_API : "https://rakshanet-edge.devanshshukla938.workers.dev");
+    const rows = await fetch(b + "/api/ledger?q=" + encodeURIComponent(q || "")).then(r=>r.json()).catch(()=>[]);
+    const box = document.getElementById("rn-ledger") || document.getElementById("rn-ledger-list");
+    if (!box || !Array.isArray(rows)) return;
+    box.innerHTML = rows.length ? rows.map(x=>`<div style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;"><strong>${x.tag||x.verdict||"CASE"}</strong> — ${(x.summary||x.claim||"").slice(0,180)} ${x.proof?`<a href="${x.proof}" target="_blank" style="color:#c8102e;font-weight:700;">[Proof]</a>`:""}</div>`).join("") : "<div style='padding:10px;color:#64748b;'>No matching Case ID or keyword found.</div>";
+    _rnShow = 20; applyPage();
+  };
+  document.addEventListener("input", e => {
+    if (e.target && /Case ID/i.test(e.target.placeholder || "")) {
+      clearTimeout(window._rnST);
+      window._rnST = setTimeout(() => rnServerSearch(e.target.value.trim()), 350);
+    }
+  });
+})();
+</script>
