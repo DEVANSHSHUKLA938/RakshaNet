@@ -1551,6 +1551,7 @@ async def _rn_run_surveillance_cycle():
             print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {clean_tag[:70]}", flush=True)
             _log_ledger("AUTO", v, clean_tag, proof)
             if v in ("FAKE","MISLEADING","CYBER THREAT") and _RN_VID_COUNT["n"] < 3: asyncio.create_task(_rn_auto_counter_video(v, raw_h, str(res or raw_h)[:260], src, proof))
+            await asyncio.to_thread(_rn_post_x, f"[{v}] {raw_h[:150]}\n\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/ #RakshaNetIndia #FactCheck")
             if tok:
                 msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
                 try: await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=10), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"))
@@ -1558,6 +1559,54 @@ async def _rn_run_surveillance_cycle():
             await asyncio.sleep(6)
         except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
 
+
+
+# === PHASE 4: X (TWITTER) v2 + INSTAGRAM GRAPH API AUTO-PUBLISHERS (Rs 0) ===
+def _rn_post_x(text):
+    import base64, hashlib, hmac, json, os, time, urllib.parse, urllib.request, uuid
+    ck, cs = os.getenv("X_API_KEY",""), os.getenv("X_API_SECRET","")
+    at, ats = os.getenv("X_ACCESS_TOKEN",""), os.getenv("X_ACCESS_SECRET","")
+    if not (ck and cs and at and ats): return ""
+    url = "https://api.twitter.com/2/tweets"
+    oauth = {
+        "oauth_consumer_key": ck, "oauth_nonce": uuid.uuid4().hex,
+        "oauth_signature_method": "HMAC-SHA1", "oauth_timestamp": str(int(time.time())),
+        "oauth_token": at, "oauth_version": "1.0"
+    }
+    param_str = "&".join(f"{urllib.parse.quote(k,'')}={urllib.parse.quote(v,'')}" for k, v in sorted(oauth.items()))
+    base_str = f"POST&{urllib.parse.quote(url,'')}&{urllib.parse.quote(param_str,'')}"
+    key = f"{urllib.parse.quote(cs,'')}&{urllib.parse.quote(ats,'')}".encode()
+    oauth["oauth_signature"] = base64.b64encode(hmac.new(key, base_str.encode(), hashlib.sha1).digest()).decode()
+    auth_hdr = "OAuth " + ", ".join(f'{k}="{urllib.parse.quote(v,"")}"' for k, v in sorted(oauth.items()))
+    req = urllib.request.Request(url, data=json.dumps({"text": text[:275]}).encode(), headers={"Authorization": auth_hdr, "Content-Type": "application/json"}, method="POST")
+    try:
+        res = json.loads(urllib.request.urlopen(req, timeout=12).read().decode())
+        tid = (res.get("data") or {}).get("id", "")
+        if tid: print(f"[PHASE 4] X Post LIVE: https://x.com/i/status/{tid}", flush=True)
+        return f"https://x.com/i/status/{tid}" if tid else ""
+    except Exception as _e:
+        print("[PHASE 4 X ERR]", _e, flush=True)
+        return ""
+
+def _rn_post_instagram(caption, media_url="", is_reel=False):
+    import json, os, urllib.parse, urllib.request
+    ig_id, ig_tok = os.getenv("IG_USER_ID",""), os.getenv("IG_ACCESS_TOKEN","")
+    if not (ig_id and ig_tok and media_url): return ""
+    try:
+        p = {"caption": caption[:2100], "access_token": ig_tok}
+        if is_reel: p.update({"media_type": "REELS", "video_url": media_url})
+        else: p.update({"image_url": media_url})
+        c_req = urllib.request.Request(f"https://graph.facebook.com/v20.0/{ig_id}/media", data=urllib.parse.urlencode(p).encode(), method="POST")
+        cid = json.loads(urllib.request.urlopen(c_req, timeout=15).read().decode()).get("id", "")
+        if not cid: return ""
+        p_req = urllib.request.Request(f"https://graph.facebook.com/v20.0/{ig_id}/media_publish", data=urllib.parse.urlencode({"creation_id": cid, "access_token": ig_tok}).encode(), method="POST")
+        pid = json.loads(urllib.request.urlopen(p_req, timeout=15).read().decode()).get("id", "")
+        if pid: print(f"[PHASE 4] Instagram Post LIVE: ID {pid}", flush=True)
+        return f"https://www.instagram.com/p/{pid}/" if pid else ""
+    except Exception as _e:
+        print("[PHASE 4 IG ERR]", _e, flush=True)
+        return ""
+# === /PHASE 4 ===
 
 # === PHASE 3: AUTONOMOUS COUNTER-VIDEO + 5-MIN ADMIN SAFETY PREVIEW ===
 _RN_VID_COUNT = {"day": "", "n": 0}
