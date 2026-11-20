@@ -63,7 +63,345 @@
   <div class="search-box"><input id="q" type="text" placeholder="Search claims or news..." oninput="filterItems()"></div>
 </div></div>
 <div class="wrap">
-  <div class="crumb">Home &rsaquo; India &rsaquo; Fact-Check &amp; Narrative Desk</div>
+  
+<!-- RN_WIDGET_START -->
+<!-- RN_HT_CSS -->
+<style id="rn-ht-theme">
+body{background:#ffffff !important;}
+#rn-widget-root{max-width:1180px;margin:0 auto 18px;padding:0;box-sizing:border-box;}
+#rn-widget-root>div:not([style*="position:fixed"]):not([style*="position: fixed"]){max-width:100% !important;margin:0 !important;background:transparent !important;border:none !important;border-bottom:1px solid #e5e5e5 !important;border-radius:0 !important;box-shadow:none !important;padding:14px 0 22px 0 !important;}
+#rn-widget-root h1,#rn-widget-root h2,#rn-widget-root h3{font-family:Georgia,"Times New Roman",Times,serif !important;color:#111111 !important;letter-spacing:-0.2px;}
+#rn-widget-root button[onclick*="rnVerify"]{background:#c8102e !important;color:#ffffff !important;border:none !important;border-radius:3px !important;font-weight:700 !important;}
+#rn-widget-root button[onclick*="rnVerify"]:hover{background:#a00d24 !important;}
+#rn-widget-root button[onclick*="rnOpenFb"]{background:#111111 !important;color:#ffffff !important;border:none !important;border-radius:3px !important;font-weight:700 !important;}
+#rn-widget-root button[onclick*="rnOpenFb"]:hover{background:#c8102e !important;}
+
+#rn-widget-root>section,#rn-widget-root div[style*="max-width"]:not([style*="position:fixed"]):not([style*="position: fixed"]){background:transparent !important;border:none !important;border-radius:0 !important;box-shadow:none !important;padding-left:0 !important;padding-right:0 !important;}
+</style>
+<!-- /RN_HT_CSS -->
+<div id="rn-widget-root">
+<div id="rn-fb-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,0.55);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+  <div style="background:#ffffff;border-radius:14px;padding:24px 28px;max-width:460px;width:92%;box-shadow:0 20px 50px rgba(0,0,0,0.22);border-top:5px solid #0f766e;font-family:system-ui,sans-serif;color:#0f172a;">
+    <h3 id="rn-fb-title" style="margin:0 0 6px;color:#1e3a5f;font-size:18px;">Share Your Feedback on RakshaNet</h3>
+    <p id="rn-fb-sub" style="margin:0 0 12px;font-size:13px;color:#475569;">Your one feedback helps us make RakshaNet faster, smarter, and safer for India.</p>
+    <div style="margin-bottom:12px;font-size:26px;cursor:pointer;user-select:none;" id="rn-stars">
+      <span onclick="rnPickStar(1)">&#9733;</span><span onclick="rnPickStar(2)">&#9733;</span><span onclick="rnPickStar(3)">&#9733;</span><span onclick="rnPickStar(4)">&#9733;</span><span onclick="rnPickStar(5)">&#9733;</span>
+    </div>
+    <label style="display:block;font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:4px;">What can we improve? (Gap / Area)</label>
+    <select id="rn-fb-cat" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid #cbd5e1;margin-bottom:10px;font-size:13px;">
+      <option value="Accuracy">Verification Accuracy</option>
+      <option value="Speed">Speed &amp; Performance</option>
+      <option value="Video">Video / Deepfake Checking</option>
+      <option value="Language">Indian Language Support</option>
+      <option value="Design">Website Design / Ease of Use</option>
+      <option value="New Feature">Suggest a New Feature</option>
+    </select>
+    <label style="display:block;font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:4px;">How can we make RakshaNet even better?</label>
+    <textarea id="rn-fb-msg" rows="3" placeholder="Tell us what felt missing or what feature you want next..." style="width:100%;padding:9px;border-radius:6px;border:1px solid #cbd5e1;font-size:13px;margin-bottom:12px;"></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button onclick="rnCloseFb()" style="padding:8px 16px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-weight:600;cursor:pointer;">Later</button>
+      <button onclick="rnSendFb()" style="padding:8px 18px;border-radius:6px;border:none;background:#1e3a5f;color:#fff;font-weight:700;cursor:pointer;">Submit Feedback</button>
+    </div>
+  </div>
+</div>
+<div id="rn-welcome" onclick="this.remove()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);backdrop-filter:blur(8px);align-items:center;justify-content:center;cursor:pointer;">
+  <canvas id="rn-confetti" style="position:fixed;inset:0;pointer-events:none;"></canvas>
+  <div style="position:relative;background:#ffffff;border-radius:18px;padding:34px 40px;max-width:460px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.22);border-top:5px solid #1e3a5f;font-family:system-ui,sans-serif;">
+    <div style="font-size:48px;line-height:1;margin-bottom:10px;">&#128591;</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#0f766e;">Namaste &bull; Welcome to</div>
+    <h1 style="margin:6px 0 6px;font-size:30px;color:#1e3a5f;letter-spacing:-0.02em;">RakshaNet</h1>
+    <div style="font-size:17px;font-weight:700;color:#b45309;margin-bottom:12px;">Aapka Cyber Sathi</div>
+    <div style="font-size:13px;color:#475569;margin-bottom:16px;">"Satyameva Jayate &mdash; Verify before you share for a safer Digital India."</div>
+    <div style="font-size:12.5px;color:#1e3a5f;font-weight:700;">Founder &amp; Creator: Devansh Shukla</div>
+  </div>
+</div>
+<section id="rn-live-desk" style="max-width:1060px;margin:18px auto;padding:22px 24px;border-radius:8px;background:#ffffff;color:#1e293b;border:1px solid #cbd5e1;border-top:4px solid #1e3a5f;box-shadow:0 2px 8px rgba(0,0,0,0.05);font-family:system-ui,sans-serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+    <div>
+      <h2 style="margin:0;color:#1e3a5f;font-size:21px;letter-spacing:-0.01em;">RakshaNet Official Fact-Check, Video &amp; Cyber Link Verifier</h2>
+      <div style="margin-top:4px;font-size:14.5px;color:#0f172a;font-weight:700;">Founder &amp; Creator: <span style="color:#1e3a5f;border-bottom:2px solid #0f766e;padding-bottom:1px;">Devansh Shukla</span></div>
+    </div>
+    <span style="font-size:12px;font-weight:700;color:#15803d;background:#dcfce7;padding:4px 10px;border-radius:99px;">24x7 Autonomous Engine: LIVE</span>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:#334155;background:#f8fafc;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;margin-bottom:14px;">
+    <span><strong>Verified Sources:</strong> PIB, RBI, MoD, WHO, IFCN &amp; 10 State RSS</span>
+    <span><strong>Coverage:</strong> English, Hindi &amp; Regional India</span>
+    <span><strong>Alerts:</strong> @RakshaNet_India &amp; YouTube Shorts</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding:7px 12px;background:#f1f5f9;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <strong style="color:#1e3a5f;">Language:</strong>
+      <button onclick="rnSetLang('en')" style="padding:3px 10px;border-radius:4px;border:1px solid #1e3a5f;background:#1e3a5f;color:#fff;font-weight:700;cursor:pointer;font-size:12px;">English</button>
+      <button onclick="rnSetLang('hi')" style="padding:3px 10px;border-radius:4px;border:1px solid #1e3a5f;background:#fff;color:#1e3a5f;font-weight:700;cursor:pointer;font-size:12px;">&#2361;&#2367;&#2344;&#2381;&#2342;&#2368;</button>
+      <select onchange="if(this.value)rnSetLang(this.value)" style="padding:3px 8px;border-radius:4px;border:1px solid #94a3b8;background:#fff;color:#0f172a;font-size:12px;cursor:pointer;">
+        <option value="">More Indian Languages &#9662;</option>
+        <option value="bn">Bengali (&#2476;&#2494;&#2434;&#2482;&#2494;)</option>
+        <option value="ta">Tamil (&#2980;&#2990;&#3007;&#2996;&#3021;)</option>
+        <option value="te">Telugu (&#3108;&#3142;&#3122;&#3137;&#3095;&#3137;)</option>
+        <option value="mr">Marathi (&#2350;&#2352;&#2366;&#2336;&#2368;)</option>
+        <option value="gu">Gujarati (&#2711;&#2753;&#2716;&#2736;&#2750;&#2724;&#2752;)</option>
+        <option value="pa">Punjabi (&#2602;&#2672;&#2588;&#2622;&#2604;&#2624;)</option>
+        <option value="kn">Kannada (&#3221;&#3240;&#3277;&#3240;&#3233;)</option>
+        <option value="ml">Malayalam (&#3374;&#3378;&#3375;&#3390;&#3379;&#3330;)</option>
+        <option value="or">Odia (&#2835;&#2849;&#2879;&#2822;)</option>
+        <option value="ur">Urdu (&#1575;&#1585;&#1583;&#1608;)</option>
+      </select>
+    </div>
+    <button onclick="rnOpenFb(false)" style="padding:4px 12px;border-radius:4px;border:none;background:#0f766e;color:#fff;font-weight:700;cursor:pointer;font-size:12px;">Rate &amp; Feedback &#9733;</button>
+  </div>
+  <div id="google_translate_element" style="display:none;"></div>
+  <div id="rn-quote" style="background:linear-gradient(90deg,#eff6ff,#f0fdf4);border-left:4px solid #f97316;padding:9px 14px;border-radius:6px;font-size:13px;font-style:italic;color:#1e3a5f;margin-bottom:12px;font-weight:600;">"Satyameva Jayate — Verify before you share. Every verified fact strengthens a safer Digital India."</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;">
+    <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Total Visitors</div><div id="rn-st-vis" style="font-size:20px;font-weight:800;color:#1e3a5f;">--</div></div>
+    <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;">Claims Verified</div><div id="rn-st-tot" style="font-size:20px;font-weight:800;color:#0f766e;">--</div></div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#b91c1c;font-weight:700;text-transform:uppercase;">Fake Caught</div><div id="rn-st-fak" style="font-size:20px;font-weight:800;color:#dc2626;">--</div></div>
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#7e22ce;font-weight:700;text-transform:uppercase;">Cyber Threats</div><div id="rn-st-cyb" style="font-size:20px;font-weight:800;color:#7e22ce;">--</div></div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+    <input id="rn-q" type="text" placeholder="Paste any viral claim, YouTube/video link, or suspicious URL..." style="flex:1;min-width:240px;padding:11px 14px;border-radius:6px;border:1px solid #94a3b8;background:#ffffff;color:#0f172a;font-size:14px;">
+    <button onclick="rnVerify()" style="padding:11px 22px;border-radius:6px;border:none;background:#1e3a5f;color:#ffffff;font-weight:700;cursor:pointer;">Verify Now</button>
+  </div>
+  <div id="rn-res" style="display:none;padding:14px;border-radius:6px;background:#f8fafc;border:1px solid #cbd5e1;border-left:5px solid #1e3a5f;margin-bottom:16px;font-size:14px;line-height:1.55;color:#0f172a;"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px;">
+    <h3 style="margin:0;color:#1e3a5f;font-size:15px;">Public Audit Ledger (Verified Cases)</h3>
+    <span style="font-size:12px;color:#b91c1c;font-weight:600;">Cyber Fraud Helpline: <a href="https://cybercrime.gov.in/" target="_blank" style="color:#1e3a5f;">cybercrime.gov.in</a> | <a href="tel:1930" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#1e3a5f" style="vertical-align:middle;"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg><span style="color:#b91c1c;font-weight:700;">Call:</span><span style="color:#1e3a5f;font-weight:800;text-decoration:underline;">1930 &rarr;</span></a></span>
+  </div>
+  <div id="rn-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    <button onclick="rnSetCat('ALL')" style="padding:5px 11px;border-radius:99px;border:1px solid #1e3a5f;background:#1e3a5f;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">All</button>
+    <button onclick="rnSetCat('FAKE')" style="padding:5px 11px;border-radius:99px;border:1px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;">Fake News</button>
+    <button onclick="rnSetCat('CYBER')" style="padding:5px 11px;border-radius:99px;border:1px solid #7e22ce;background:#fff;color:#7e22ce;font-size:12px;font-weight:700;cursor:pointer;">Cyber Threats</button>
+    <button onclick="rnSetCat('VERIFIED')" style="padding:5px 11px;border-radius:99px;border:1px solid #15803d;background:#fff;color:#15803d;font-size:12px;font-weight:700;cursor:pointer;">Verified Facts</button>
+    <button onclick="rnSetCat('MISLEADING')" style="padding:5px 11px;border-radius:99px;border:1px solid #d97706;background:#fff;color:#d97706;font-size:12px;font-weight:700;cursor:pointer;">Misleading</button>
+    <button onclick="rnSetCat('VIDEO')" style="padding:5px 11px;border-radius:99px;border:1px solid #0284c7;background:#fff;color:#0284c7;font-size:12px;font-weight:700;cursor:pointer;">Video Checks</button>
+  </div>
+  <input id="rn-filter" oninput="rnRenderLedger()" type="text" placeholder="Search by Case ID (RN-...) or keyword..." style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-size:13px;margin-bottom:10px;">
+  <div id="rn-ledger" style="max-height:240px;overflow-y:auto;font-size:13px;color:#1e293b;border:1px solid #e2e8f0;border-radius:6px;background:#ffffff;">Loading live ledger...</div>
+  <div id="rn-guide" style="margin-top:18px;padding:16px 18px;border-radius:8px;background:#f8fafc;border:1px solid #cbd5e1;border-left:4px solid #0f766e;">
+    <h3 style="margin:0 0 10px;color:#1e3a5f;font-size:15.5px;">How RakshaNet Works &amp; Citizen User Guide</h3>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:12px;">
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">1. Paste Claim / Link / Video</span>
+      <span style="color:#0f766e;font-size:15px;">&rarr;</span>
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">2. Official &amp; Cyber Safety Check</span>
+      <span style="color:#0f766e;font-size:15px;">&rarr;</span>
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">3. Verified Verdict + Proof Link</span>
+      <span style="color:#0f766e;font-size:15px;">&rarr;</span>
+      <span style="background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;">4. Stay Safe / Call 1930</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;font-size:13px;color:#334155;line-height:1.5;">
+      <div><strong style="color:#1e3a5f;">How to Use:</strong> Paste any viral WhatsApp forward, news headline, YouTube video link, or suspicious URL in the Verifier box above and click <strong>Verify Now</strong>. For photos, voice notes, or forwarded videos, use our Telegram Desk <strong>@RakshaNet_India</strong>.</div>
+      <div><strong style="color:#0f766e;">How It Helps You:</strong> Protects you from fake banking/government scam links and malware APKs before you click, stops false rumors before sharing, provides direct official proof links (PIB, RBI, IFCN), and never guesses when proof is unverified.</div>
+    </div>
+  </div>
+  <div style="margin-top:14px;padding:12px 16px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:13.5px;">
+    <div><strong style="color:#1e3a5f;">Citizen Rating:</strong> <span id="rn-bar-stars" style="color:#94a3b8;font-size:16px;">&#9734;&#9734;&#9734;&#9734;&#9734;</span> <strong id="rn-avg-r" style="color:#0f172a;">No ratings yet</strong> <span id="rn-cnt-r" style="color:#64748b;font-size:12.5px;"></span></div>
+    <button onclick="rnOpenFb(false)" style="padding:8px 16px;border-radius:6px;border:none;background:#0f766e;color:#fff;font-weight:700;cursor:pointer;font-size:13px;">Give Feedback &amp; Rate &#9733;</button>
+  </div>
+</section>
+<script>
+const RN_API = "https://rakshanet-edge.devanshshukla938.workers.dev";
+let _rnRows = [];
+function rnLocalCyberScan(q) {
+  const urls = (q.match(/https?:\/\/[^\s<>"']+/gi) || []);
+  const badExt = [".apk", ".exe", ".bat", ".scr", ".vbs"];
+  const lookalikes = ["pmkisan", "pm-kisan", "uidai", "aadhaar", "epfo", "incometax", "sbi", "hdfc", "icici", "rbi", "echallan", "parivahan", "india-post", "indiapost", "gov-in"];
+  const official = [".gov.in", ".nic.in", ".rbi.org.in", ".sbi.co.in", ".onlinesbi.sbi", ".uidai.gov.in", ".parivahan.gov.in", ".epfindia.gov.in"];
+  for (const u of urls) {
+    const lu = u.toLowerCase().split("?")[0];
+    const dom = lu.split("//")[1].split("/")[0].split(":")[0];
+    if (badExt.some(e => lu.endsWith(e))) return "[CYBER THREAT] Suspicious executable/APK download link detected. Do NOT install unknown APKs; report cyber fraud at cybercrime.gov.in or call 1930.";
+    if (lookalikes.some(k => dom.includes(k)) && !official.some(o => dom.endsWith(o) || dom === o.slice(1))) return `[CYBER THREAT] Suspected phishing/lookalike domain (${dom}) impersonating an official Indian service. Verify only on official .gov.in/.nic.in portals and report at cybercrime.gov.in (1930).`;
+  }
+  return null;
+}
+async function rnVerify() {
+  const q = document.getElementById("rn-q").value.trim();
+  const box = document.getElementById("rn-res");
+  if (!q) return;
+  const localThreat = rnLocalCyberScan(q);
+  if (localThreat) {
+    box.style.display = "block";
+    box.style.borderLeftColor = "#7e22ce";
+    box.innerHTML = localThreat + ' <br><a href="https://cybercrime.gov.in/" target="_blank" style="color:#1e3a5f;font-weight:700;">Report on cybercrime.gov.in &rarr;</a>';
+    return;
+  }
+  box.style.display = "block";
+  box.innerHTML = "Checking PIB/RBI official feeds, news, video forensics &amp; cyber scanner...";
+  try {
+    const r = await fetch(RN_API + "/api/verify?q=" + encodeURIComponent(q));
+    const d = await r.json();
+    const txt = d.fact || d.error || "No response";
+    const col = txt.includes("[FAKE]") || txt.includes("HIGH RISK") ? "#dc2626" : (txt.includes("[VERIFIED]") || txt.includes("SAFE") ? "#16a34a" : (txt.includes("[CYBER") ? "#7e22ce" : "#475569"));
+    box.style.borderLeftColor = col;
+    box.innerHTML = txt.replace(/</g, "&lt;") + (d.proof ? ' <br><a href="' + d.proof + '" target="_blank" style="color:#1e3a5f;font-weight:700;">Read Official Proof &rarr;</a>' : "");
+    rnLoadLedger(); if(!localStorage.getItem('rn_fb_done') && !window._rnFbPost){window._rnFbPost=1; setTimeout(()=>rnOpenFb(false), 2000);}
+  } catch (e) {
+    box.innerHTML = "Server waking up (Render Free Tier) — please click Verify Now again in 20 seconds.";
+  }
+}
+function rnRenderLedger() {
+  const f = (document.getElementById("rn-filter").value || "").toLowerCase();
+  const el = document.getElementById("rn-ledger");
+  const list = _rnRows.filter(x => { const s = (x.summary + " " + x.case_id + " " + x.verdict).toUpperCase(); const catOk = _rnCat==="ALL" || (_rnCat==="VIDEO" ? (s.includes("FORENSIC")||s.includes("YOUTUBE")) : s.includes(_rnCat)); return catOk && s.toLowerCase().includes(f); });
+  if (!list.length) { el.innerHTML = "<div style='padding:10px;color:#64748b;'>No verified cases recorded yet.</div>"; return; }
+  el.innerHTML = list.map(x => `<div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;"><strong>${(x.verdict||"").replace(/</g,"&lt;")}</strong> &mdash; ${(x.summary||"").replace(/</g,"&lt;")} ${x.proof ? `<a href="${x.proof}" target="_blank" style="color:#1e3a5f;font-weight:600;">[Proof]</a>` : ""}</div>`).join("");
+}
+async function rnLoadLedger() {
+  try {
+    const r = await fetch(RN_API + "/api/ledger");
+    _rnRows = await r.json();
+    rnRenderLedger();
+  } catch (e) {
+    document.getElementById("rn-ledger").innerHTML = "<div style='padding:10px;color:#64748b;'>Ledger connects once Render wakes up.</div>";
+  }
+}
+rnLoadLedger();
+
+let _rnCat = "ALL";
+function rnSetCat(c) { _rnCat = c; rnRenderLedger(); }
+const _rnQuotes = [
+  '"Satyameva Jayate — Verify before you share. Every verified fact strengthens a safer Digital India."',
+  '"A vigilant citizen is the strongest shield of Bharat — verify claims with RakshaNet."',
+  '"Rumors travel fast, but verified truth protects the nation — RakshaNet, Aapka Cyber Sathi."'
+];
+let _qi = 0;
+setInterval(() => { _qi = (_qi + 1) % _rnQuotes.length; const q = document.getElementById("rn-quote"); if (q) q.textContent = _rnQuotes[_qi]; }, 7000);
+async function rnLoadStats() {
+  const isNew = !sessionStorage.getItem("rn_visited");
+  if (isNew) sessionStorage.setItem("rn_visited", "1");
+  try {
+    const r = await fetch(RN_API + "/api/stats" + (isNew ? "?hit=1&t=" + Date.now() : ""));
+    const s = await r.json();
+    document.getElementById("rn-st-vis").textContent = s.visits || 1;
+    document.getElementById("rn-st-tot").textContent = s.total_verified || 0;
+    document.getElementById("rn-st-fak").textContent = (s.cats && s.cats.fake) || 0;
+    document.getElementById("rn-st-cyb").textContent = (s.cats && s.cats.cyber) || 0;
+  } catch (e) {}
+}
+function rnRunWelcome() {
+  if (localStorage.getItem("rn_welcomed_v2")) return;
+  localStorage.setItem("rn_welcomed_v2", "1");
+  const ov = document.getElementById("rn-welcome");
+  const cv = document.getElementById("rn-confetti");
+  if (!ov || !cv) return;
+  ov.style.display = "flex";
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext("2d");
+  const cols = ["#f97316", "#ffffff", "#15803d", "#1e3a5f", "#d97706"];
+  const ps = Array.from({length: 90}, (_, i) => ({
+    x: i % 2 === 0 ? 0 : cv.width, y: cv.height * (0.2 + Math.random() * 0.5),
+    vx: (i % 2 === 0 ? 1 : -1) * (4 + Math.random() * 7), vy: -6 - Math.random() * 6,
+    sz: 5 + Math.random() * 6, c: cols[i % cols.length], r: Math.random() * 6
+  }));
+  let frames = 0;
+  function tick() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (const p of ps) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.r += 0.12;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.sz/2, -p.sz/2, p.sz, p.sz*0.6); ctx.restore();
+    }
+    if (++frames < 160 && document.getElementById("rn-welcome")) requestAnimationFrame(tick);
+  }
+  tick();
+  setTimeout(() => { const el = document.getElementById("rn-welcome"); if (el) el.remove(); }, 3600);
+}
+rnLoadStats();
+rnRunWelcome();
+
+function rnSetLang(lang) {
+  if (lang === "en") {
+    document.cookie = "googtrans=/en/en;path=/";
+    location.reload();
+    return;
+  }
+  document.cookie = "googtrans=/en/" + lang + ";path=/";
+  if (!window._rnGtLoaded) {
+    window._rnGtLoaded = true;
+    window.googleTranslateElementInit = function() {
+      new google.translate.TranslateElement({pageLanguage: "en", autoDisplay: false}, "google_translate_element");
+      setTimeout(() => {
+        const sel = document.querySelector(".goog-te-combo");
+        if (sel) { sel.value = lang; sel.dispatchEvent(new Event("change")); }
+      }, 600);
+    };
+    const s = document.createElement("script");
+    s.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    document.body.appendChild(s);
+  } else {
+    const sel = document.querySelector(".goog-te-combo");
+    if (sel) { sel.value = lang; sel.dispatchEvent(new Event("change")); }
+  }
+}
+
+let _rnStar = 5, _rnExitShown = false;
+function rnPickStar(n) {
+  _rnStar = n;
+  document.querySelectorAll("#rn-stars span").forEach((el, i) => { el.style.color = i < n ? "#f59e0b" : "#cbd5e1"; });
+}
+function rnOpenFb(isExit) {
+  const m = document.getElementById("rn-fb-modal");
+  if (!m) return;
+  const _rnRep = !!localStorage.getItem("rn_fb_done"); document.getElementById("rn-fb-title").textContent = isExit ? (_rnRep ? "Welcome Back — Any New Suggestion?" : "Before You Go — One Quick Feedback?") : "Share Your Feedback on RakshaNet";
+  document.getElementById("rn-fb-sub").textContent = isExit ? (_rnRep ? "Totally optional — just a gentle reminder! If you noticed anything new today, feel free to share. Thank you / Dhanyawad 🙏" : "Your one feedback can help us improve RakshaNet and make Digital India even safer. Thank you / Dhanyawad 🙏") : "Your one feedback helps us make RakshaNet faster, smarter, and safer for India.";
+  rnPickStar(_rnStar);
+  m.style.display = "flex";
+}
+function rnCloseFb() { const m = document.getElementById("rn-fb-modal"); if (m) m.style.display = "none"; }
+function rnPaintAvg(avg, cnt) {
+  const st = document.getElementById("rn-bar-stars"), av = document.getElementById("rn-avg-r"), cn = document.getElementById("rn-cnt-r");
+  if (!av) return;
+  if (cnt && avg > 0) {
+    const f = Math.round(avg);
+    if (st) { st.style.color = "#d97706"; st.innerHTML = "&#9733;".repeat(f) + "&#9734;".repeat(5 - f); }
+    av.textContent = avg + " / 5";
+    if (cn) cn.textContent = "(" + cnt + " reviews)";
+  } else {
+    av.textContent = "No ratings yet";
+    if (cn) cn.textContent = "";
+  }
+}
+async function rnSendFb() {
+  const cat = document.getElementById("rn-fb-cat").value;
+  const msg = document.getElementById("rn-fb-msg").value.trim();
+  localStorage.setItem("rn_fb_done", "1");
+  rnCloseFb();
+  try {
+    const r = await fetch(RN_API + "/api/feedback?stars=" + _rnStar + "&cat=" + encodeURIComponent(cat) + "&msg=" + encodeURIComponent(msg) + "&t=" + Date.now());
+    const d = await r.json();
+    rnPaintAvg(d.avg, d.count);
+  } catch (e) {}
+  alert("Thank you for your valuable feedback! Dhanyawad 🙏");
+}
+async function rnLoadRating() {
+  try {
+    const r = await fetch(RN_API + "/api/feedback");
+    const d = await r.json();
+    rnPaintAvg(d.avg, d.count);
+  } catch (e) {}
+}
+function _rnTryExit(e) {
+  if (e.clientY <= 30 && !_rnExitShown) {
+    _rnExitShown = true;
+    rnOpenFb(true);
+  }
+}
+document.addEventListener("mouseleave", _rnTryExit);
+document.addEventListener("mouseout", (e) => { if (!e.relatedTarget && !e.toElement) _rnTryExit(e); });
+if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+  var _rnArmed = false;
+  window.addEventListener("touchstart", () => {
+    if (!_rnArmed && !_rnExitShown) { _rnArmed = true; try { history.pushState({rnExit:1}, "", location.href); } catch(e) {} }
+  }, {once: true, passive: true});
+  window.addEventListener("popstate", () => {
+    if (!_rnExitShown) { _rnExitShown = true; rnOpenFb(true); }
+  });
+}
+rnLoadRating();
+</script>
+</div>
+
+<!-- RN_WIDGET_END -->
+<div class="crumb">Home &rsaquo; India &rsaquo; Fact-Check &amp; Narrative Desk</div>
   <section class="lead-box">
   <span class="lead-cat">Verified Counter-Report</span>
     <h1>[YouTube] Congress' Bharat Summit In Hyderabad A 'Pro-Soros' Platform? | Anti-India | The Right Stand | News18</h1>

@@ -102,3 +102,17 @@ try:
         html = (html[:_rm.start()] + _rb + html[_rm.start():]) if _rm else html.replace("<body>", "<body>" + _rb, 1)
 except Exception:
     pass
+
+# === RN_ATEXIT_HOOK ===
+import atexit as _rn_atexit, os as _rn_os, re as _rn_re
+def _rn_post_sync():
+    if _rn_os.path.exists("docs/rn_widget.html") and _rn_os.path.exists("docs/index.html"):
+        _w = open("docs/rn_widget.html", encoding="utf-8").read()
+        _s = open("docs/index.html", encoding="utf-8").read()
+        _s = _rn_re.sub(r"\n?<!-- RN_WIDGET_START -->.*?<!-- RN_WIDGET_END -->\n?", "", _s, flags=_rn_re.S)
+        _m = _rn_re.search(r'<div[^>]*>[^<]*Home\s*(?:›|&rsaquo;|&#8250;|&gt;|>)[^<]*India', _s, _rn_re.I)
+        _b = "\n<!-- RN_WIDGET_START -->\n" + _w + "\n<!-- RN_WIDGET_END -->\n"
+        _s = (_s[:_m.start()] + _b + _s[_m.start():]) if _m else _s.replace("<body>", "<body>" + _b, 1)
+        open("docs/index.html", "w", encoding="utf-8").write(_s)
+_rn_atexit.register(_rn_post_sync)
+# === /RN_ATEXIT_HOOK ===
