@@ -333,8 +333,8 @@ function rnPickStar(n) {
 function rnOpenFb(isExit) {
   const m = document.getElementById("rn-fb-modal");
   if (!m) return;
-  document.getElementById("rn-fb-title").textContent = isExit ? "Before You Go — One Quick Feedback?" : "Share Your Feedback on RakshaNet";
-  document.getElementById("rn-fb-sub").textContent = isExit ? "Your one feedback can help us improve RakshaNet and make Digital India even safer. Thank you / Dhanyawad 🙏" : "Your one feedback helps us make RakshaNet faster, smarter, and safer for India.";
+  const _rnRep = !!localStorage.getItem("rn_fb_done"); document.getElementById("rn-fb-title").textContent = isExit ? (_rnRep ? "Welcome Back — Any New Suggestion?" : "Before You Go — One Quick Feedback?") : "Share Your Feedback on RakshaNet";
+  document.getElementById("rn-fb-sub").textContent = isExit ? (_rnRep ? "Totally optional — just a gentle reminder! If you noticed anything new today, feel free to share. Thank you / Dhanyawad 🙏" : "Your one feedback can help us improve RakshaNet and make Digital India even safer. Thank you / Dhanyawad 🙏") : "Your one feedback helps us make RakshaNet faster, smarter, and safer for India.";
   rnPickStar(_rnStar);
   m.style.display = "flex";
 }
@@ -371,12 +371,23 @@ async function rnLoadRating() {
     rnPaintAvg(d.avg, d.count);
   } catch (e) {}
 }
-document.addEventListener("mouseleave", (e) => {
-  if (e.clientY <= 5 && !_rnExitShown && !localStorage.getItem("rn_fb_done")) {
+function _rnTryExit(e) {
+  if (e.clientY <= 30 && !_rnExitShown) {
     _rnExitShown = true;
     rnOpenFb(true);
   }
-});
+}
+document.addEventListener("mouseleave", _rnTryExit);
+document.addEventListener("mouseout", (e) => { if (!e.relatedTarget && !e.toElement) _rnTryExit(e); });
+if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+  var _rnArmed = false;
+  window.addEventListener("touchstart", () => {
+    if (!_rnArmed && !_rnExitShown) { _rnArmed = true; try { history.pushState({rnExit:1}, "", location.href); } catch(e) {} }
+  }, {once: true, passive: true});
+  window.addEventListener("popstate", () => {
+    if (!_rnExitShown) { _rnExitShown = true; rnOpenFb(true); }
+  });
+}
 rnLoadRating();
 </script>
 </div>
