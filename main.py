@@ -1489,6 +1489,7 @@ if os.environ.get("PORT"):
         def do_HEAD(self): self.send_response(200); self.end_headers()
         def log_message(self, *a): pass
     threading.Thread(target=lambda: ThreadingHTTPServer(("0.0.0.0", int(os.environ["PORT"])), H).serve_forever(), daemon=True).start()
+threading.Thread(target=lambda: __import__("asyncio").run(_rn_auto_surveillance_loop()), daemon=True).start()
 
 def _render_switch(action):
     k = os.environ.get("RENDER_API_KEY")
@@ -1551,13 +1552,14 @@ async def _rn_run_surveillance_cycle():
         tag = f"[{cat}] {title[:170]}"
         if tag.lower()[:70] in seen_db: continue
         try:
-            ev = await asyncio.to_thread(deep_verify, title) if "deep_verify" in globals() else ""
-            res = await asyncio.to_thread(ai_reason, title, ev) if "ai_reason" in globals() else ""
-            sc, fl = _rn_independent_assess(title, ev)
+            h, fb, purl = await asyncio.to_thread(deep_verify, title)
+            res = await asyncio.to_thread(ai_reason, title, h, fb)
+            sc, fl = _rn_independent_assess(title, h)
             up = str(res or "").upper()
-            v = "CYBER THREAT" if cat=="CYBER THREAT" else ("FAKE" if "FAKE" in up else ("MISLEADING" if "MISLEADING" in up else ("VERIFIED" if "VERIFIED" in up else (f"LIKELY FAKE ({sc}% Risk)" if sc>=60 else ""))))
+            v = "CYBER THREAT" if cat=="CYBER THREAT" else ("FAKE" if "FAKE" in up else ("MISLEADING" if "MISLEADING" in up else ("VERIFIED" if "VERIFIED" in up else (f"LIKELY FAKE ({sc}% Risk)" if sc>=50 else ""))))
             if not v: continue
-            proof = (ev[1] if isinstance(ev, tuple) and len(ev)>=2 and ev[1] else src)
+            proof = purl or src
+            print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {title[:60]}", flush=True)
             _log_ledger("AUTO", v, tag, proof)
             if tok:
                 msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
@@ -1568,7 +1570,8 @@ async def _rn_run_surveillance_cycle():
 
 async def _rn_auto_surveillance_loop():
     import asyncio
-    await asyncio.sleep(60)
+    print("[AUTO-SURVEILLANCE] Loop booted! Scanning in 25s...", flush=True)
+    await asyncio.sleep(25)
     while True:
         try: await _rn_run_surveillance_cycle()
         except Exception: pass
