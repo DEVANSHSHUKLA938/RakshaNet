@@ -1530,15 +1530,24 @@ async def _rn_run_surveillance_cycle():
         tag = f"[{cat}] {title[:170]}"
         if tag.lower()[:70] in seen_db: continue
         try:
-            h, fb, purl = await asyncio.to_thread(deep_verify, title)
-            res = await asyncio.to_thread(ai_reason, title, h, fb)
-            sc, fl = _rn_independent_assess(title, h)
-            up = str(res or "").upper()
-            v = "CYBER THREAT" if cat=="CYBER THREAT" else ("FAKE" if "FAKE" in up else ("MISLEADING" if "MISLEADING" in up else ("VERIFIED" if "VERIFIED" in up else (f"LIKELY FAKE ({sc}% Risk)" if sc>=50 else ""))))
-            if not v: continue
+            pub = title.rsplit(" - ", 1)[1].strip() if " - " in title else "Web Monitor"
+            raw_h = title.rsplit(" - ", 1)[0].strip()
+            h, fb, purl = await asyncio.to_thread(deep_verify, raw_h)
+            prompt_q = f"Extract the viral claim being debunked/reported in this headline and judge THAT claim (not the news report): {raw_h}. Reply in 2 short lines: CLAIM: <actual claim> | FACT: <truth>"
+            res = await asyncio.to_thread(ai_reason, prompt_q, h, fb)
+            sc, fl = _rn_independent_assess(raw_h, h)
+            up = (raw_h + " " + str(res or "")).upper()
+            if cat == "CYBER THREAT": v = "CYBER THREAT"
+            elif any(w in raw_h.lower() for w in ("junks","debunk","fake","false","hoax","fact check","misleading","fabricated")): v = "FAKE"
+            elif "FAKE" in up: v = "FAKE"
+            elif "MISLEADING" in up: v = "MISLEADING"
+            elif "VERIFIED" in up: v = "VERIFIED"
+            elif sc >= 50: v = f"LIKELY FAKE ({sc}% Risk)"
+            else: continue
             proof = purl or src
-            print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {title[:60]}", flush=True)
-            _log_ledger("AUTO", v, tag, proof)
+            clean_tag = f"[{cat}] Claim: {raw_h[:135]} (via {pub})"
+            print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {clean_tag[:70]}", flush=True)
+            _log_ledger("AUTO", v, clean_tag, proof)
             if tok:
                 msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
                 try: await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"), 10)
