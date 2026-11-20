@@ -853,8 +853,8 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ext = ".mp4" if (update.message.video or update.message.video_note) else ".ogg"
     p = f"temp/tg_{int(_tm.time()*1000)}_{m.file_unique_id}{ext}"
     try:
-        f = await context.bot.get_file(m.file_id)
-        await f.download_to_drive(p)
+        f = await context.bot.get_file(m.file_id, read_timeout=120, write_timeout=120, connect_timeout=30)
+        await f.download_to_drive(p, read_timeout=120, write_timeout=120, connect_timeout=30)
         tech_flags = _ffprobe_forensics(p) if ext == ".mp4" else []
         if ext == ".mp4":
             f0 = p + "_f0.jpg"
@@ -902,7 +902,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
     except Exception as e:
-        await update.message.reply_text(f"[Media Error] {e}")
+        await update.message.reply_text("Video 20 MB se badi hai — kripya direct link (YouTube/X/Instagram) bhejein ya chhoti clip forward karein!" if "too big" in str(e).lower() else f"[Media Error] {e} — kripya dobara bhejein.")
     finally:
         if os.path.exists(p):
             os.remove(p)
@@ -922,8 +922,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.makedirs("temp", exist_ok=True)
     p = f"temp/tg_p_{int(_tm.time()*1000)}_{update.message.photo[-1].file_unique_id}.jpg"
     try:
-        f = await context.bot.get_file(update.message.photo[-1].file_id)
-        await f.download_to_drive(p)
+        f = await context.bot.get_file(update.message.photo[-1].file_id, read_timeout=120, write_timeout=120, connect_timeout=30)
+        await f.download_to_drive(p, read_timeout=120, write_timeout=120, connect_timeout=30)
         k = os.environ.get("GROQ_API_KEY", "").strip()
         b64 = base64.b64encode(open(p, "rb").read()).decode()
         vis_prompt = (
@@ -1540,14 +1540,24 @@ async def _rn_run_surveillance_cycle():
             elif sc >= 50: v = f"LIKELY FAKE ({sc}% Risk)"
             else: continue
             proof = purl or src
+            _ld = open("data/ledger.json", encoding="utf-8").read().lower() if os.path.exists("data/ledger.json") else ""
+            if raw_h[:50].lower() in _ld: continue
             clean_tag = f"[{cat}] Claim: {raw_h[:135]} (via {pub})"
             print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {clean_tag[:70]}", flush=True)
             _log_ledger("AUTO", v, clean_tag, proof)
             if v in ("FAKE","MISLEADING","CYBER THREAT") and _RN_VID_COUNT["n"] < 3: asyncio.create_task(_rn_auto_counter_video(v, raw_h, str(res or raw_h)[:260], src, proof))
             await asyncio.to_thread(_rn_post_x, f"[{v}] {raw_h[:150]}\n\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/ #RakshaNetIndia #FactCheck")
             if tok:
-                msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
-                try: await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=10), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"))
+                import html as _ht
+                _b = str(res or title).strip()
+                if "[UNCONFIRMED]" in _b.upper() and v in ("FAKE", "MISLEADING", "CYBER THREAT"): _b = f"Dual-Engine Verification flagged this viral claim as {v} based on official source & fraud-pattern analysis. Verify before sharing."
+                _p = proof if str(proof).startswith("http") else "https://devanshshukla938.github.io/RakshaNet/"
+                _u = src if str(src).startswith("http") else _p
+                _msg = f"<b>[{_ht.escape(v)}] {_ht.escape(cat)}</b>\n\n<b>Claim:</b> {_ht.escape(title[:220])}\n\n<b>Verdict:</b> {_ht.escape(_b[:600])}"
+                _qt = f"[{v}] {raw_h[:150]} Proof: {_p} #RakshaNetIndia"
+                _xu = "https://twitter.com/intent/tweet?text=" + urllib.parse.quote(_qt)
+                _kb = {"inline_keyboard": [[{"text": "Read Full Proof", "url": _p}, {"text": "Original Source", "url": _u}], [{"text": "Share on X (1-Click)", "url": _xu}, {"text": "RakshaNet Portal", "url": "https://devanshshukla938.github.io/RakshaNet/"}]]}
+                try: await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=15), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": "@RakshaNet_India", "text": _msg, "parse_mode": "HTML", "disable_web_page_preview": True, "reply_markup": _kb}).encode(), headers={"Content-Type": "application/json"}, method="POST"))
                 except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
             await asyncio.sleep(6)
         except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
