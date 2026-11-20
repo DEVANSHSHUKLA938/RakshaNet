@@ -1517,7 +1517,32 @@ def _rn_fetch_radars(per_feed=2):
         except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
     return out
 
+
+def _rn_queue_video(v, h, s, src, proof):
+    os.makedirs("data", exist_ok=True)
+    qp = "data/vid_queue.json"
+    q = json.load(open(qp, encoding="utf-8")) if os.path.exists(qp) else []
+    if not any(x.get("h") == h for x in q):
+        q.append({"v": v, "h": h, "s": s, "src": src, "proof": proof})
+        json.dump(q[-30:], open(qp, "w", encoding="utf-8"))
+        print(f"[AUTO-QUEUE] Saved for next quota window ({len(q)} in queue): {h[:55]}", flush=True)
+
+async def _rn_drain_video_queue():
+    td = __import__("time").strftime("%Y-%m-%d")
+    if _RN_VID_COUNT.get("d") != td: _RN_VID_COUNT.update({"d": td, "n": 0})
+    qp = "data/vid_queue.json"
+    if not os.path.exists(qp): return
+    q = json.load(open(qp, encoding="utf-8"))
+    rem = []
+    for x in q:
+        if _RN_VID_COUNT["n"] < 5:
+            asyncio.create_task(_rn_auto_counter_video(x["v"], x["h"], x["s"], x["src"], x["proof"]))
+        else:
+            rem.append(x)
+    json.dump(rem, open(qp, "w", encoding="utf-8"))
+
 async def _rn_run_surveillance_cycle():
+    await _rn_drain_video_queue()
     import asyncio, json, os, urllib.request
     tok = os.getenv("BOT_TOKEN","") or os.getenv("TELEGRAM_BOT_TOKEN","")
     seen_db = {str(r.get("claim","")).lower()[:70] for r in (_sb_req("GET","ledger",query="select=claim&limit=200") or [])}
@@ -1545,7 +1570,10 @@ async def _rn_run_surveillance_cycle():
             clean_tag = f"[{cat}] Claim: {raw_h[:135]} (via {pub})"
             print(f"[AUTO-SURVEILLANCE] Verified & Saving: {v} | {clean_tag[:70]}", flush=True)
             _log_ledger("AUTO", v, clean_tag, proof)
-            if v in ("FAKE","MISLEADING","CYBER THREAT") and _RN_VID_COUNT["n"] < 3: asyncio.create_task(_rn_auto_counter_video(v, raw_h, str(res or raw_h)[:260], src, proof))
+            if v in ("FAKE","MISLEADING","CYBER THREAT"):
+                if _RN_VID_COUNT.get("d") != __import__("time").strftime("%Y-%m-%d"): _RN_VID_COUNT.update({"d": __import__("time").strftime("%Y-%m-%d"), "n": 0})
+                if _RN_VID_COUNT["n"] < 5: asyncio.create_task(_rn_auto_counter_video(v, raw_h, str(res or raw_h)[:260], src, proof))
+                else: _rn_queue_video(v, raw_h, str(res or raw_h)[:260], src, proof)
             await asyncio.to_thread(_rn_post_x, f"[{v}] {raw_h[:150]}\n\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/ #RakshaNetIndia #FactCheck")
             if tok:
                 import html as _ht
