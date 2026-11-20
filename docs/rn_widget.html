@@ -95,9 +95,10 @@ body{background:#ffffff !important;}
     <button onclick="rnVerify()" style="padding:11px 22px;border-radius:6px;border:none;background:#1e3a5f;color:#ffffff;font-weight:700;cursor:pointer;">Verify Now</button>
   </div>
   <div id="rn-res" style="display:none;padding:14px;border-radius:6px;background:#f8fafc;border:1px solid #cbd5e1;border-left:5px solid #1e3a5f;margin-bottom:16px;font-size:14px;line-height:1.55;color:#0f172a;"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px;">
-    <div id="rn-tg-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:8px 0 14px;padding:7px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;font-size:12.5px;color:#334155;"><span>Have a <strong>WhatsApp screenshot, photo, or voice note</strong> to verify?</span><a href="https://t.me/RakshaNet_India" target="_blank" rel="noopener" style="display:inline-block;padding:5px 12px;background:#111111;color:#ffffff;text-decoration:none;border-radius:3px;font-weight:700;font-size:12px;">Check on Telegram (@RakshaNet_India) &rarr;</a></div>
-<h3 style="margin:0;color:#1e3a5f;font-size:15px;">Public Audit Ledger (Verified Cases)</h3>
+  <div id="rn-tg-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:8px 0 14px;padding:7px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;font-size:12.5px;color:#334155;"><span>Have a <strong>WhatsApp screenshot, photo, or voice note</strong> to verify?</span><a href="https://t.me/RakshaNet_India" target="_blank" rel="noopener" style="display:inline-block;padding:5px 12px;background:#111111;color:#ffffff;text-decoration:none;border-radius:3px;font-weight:700;font-size:12px;">Check on Telegram (@RakshaNet_India) &rarr;</a></div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 8px;">
+    <h3 style="margin:0;color:#1e3a5f;font-size:15px;">Public Audit Ledger (Verified Cases)</h3>
     <span style="font-size:12px;color:#b91c1c;font-weight:600;">Cyber Fraud Helpline: <a href="https://cybercrime.gov.in/" target="_blank" style="color:#1e3a5f;">cybercrime.gov.in</a> | <a href="tel:1930" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#1e3a5f" style="vertical-align:middle;"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg><span style="color:#b91c1c;font-weight:700;">Call:</span><span style="color:#1e3a5f;font-weight:800;text-decoration:underline;">1930 &rarr;</span></a></span>
   </div>
   <div id="rn-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
@@ -356,28 +357,24 @@ rnLoadRating();
 <script>
 async function rnSyncNarratives(){
   try{
-    const base = (typeof RN_API !== "undefined" ? RN_API : "https://rakshanet-edge.devanshshukla938.workers.dev");
-    const [st, rows] = await Promise.all([
-      fetch(base + "/api/stats").then(r=>r.json()).catch(()=>({})),
-      fetch(base + "/api/ledger").then(r=>r.json()).catch(()=>[])
-    ]);
-    const list = Array.isArray(rows) ? rows : [];
-    const nars = list.filter(x => /NARRATIVE|INDIA|ARMY|DEFENCE|FAKE|MISLEADING/i.test((x.verdict||"")+" "+(x.claim||"")));
-    const cnt = Math.max(Number(st.narratives||0), nars.length);
-    const b = document.getElementById("rn-nar-badge");
-    if(b) b.textContent = "Live Tracked: " + cnt;
+    const b=(typeof RN_API!=="undefined"?RN_API:"https://rakshanet-edge.devanshshukla938.workers.dev");
+    const rows=await fetch(b+"/api/ledger?t="+Date.now()).then(r=>r.json()).catch(()=>[]);
+    const list=Array.isArray(rows)?rows:[];
+    const txt=x=>String(x.claim||x.text||x.q||x.title||"");
+    const vrd=x=>String(x.verdict||x.tag||x.v||"VERIFIED");
+    const prf=x=>String(x.proof||x.proof_url||x.source_url||x.u||"");
+    const nars=list.filter(x=>/NARRATIVE|INDIA|ARMY|AIR FORCE|DEFENCE|RAFALE|FAKE|MISLEADING/i.test(vrd(x)+" "+txt(x)));
+    const fakes=list.filter(x=>/FAKE|MISLEADING/i.test(vrd(x)));
+    const cybs=list.filter(x=>/CYBER/i.test(vrd(x)+" "+txt(x)));
+    const setNum=(id,n)=>{const e=document.getElementById(id);if(e&&n>0)e.textContent=String(n);};
+    setNum("rn-st-claims",list.length); setNum("rn-st-fake",fakes.length); setNum("rn-st-cyber",cybs.length);
+    const bd=document.getElementById("rn-nar-badge"); if(bd) bd.textContent="Live Tracked: "+nars.length;
     document.querySelectorAll("div,span,td").forEach(el=>{
-      if(el.children.length===0 && el.textContent.trim()==="Narrative Counters" && el.nextElementSibling){
-        el.nextElementSibling.textContent = String(cnt);
-      }
+      if(el.children.length===0&&el.textContent.trim()==="Narrative Counters"&&el.nextElementSibling) el.nextElementSibling.textContent=String(nars.length);
     });
-    const box = document.getElementById("rn-nar-list");
-    if(box){
-      if(!nars.length){
-        box.innerHTML = "Autonomous monitor active &mdash; verified India narrative counter-reports will appear here automatically as soon as Phase 2 surveillance runs.";
-      } else {
-        box.innerHTML = nars.slice(0,5).map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;"><strong>[${x.verdict||"VERIFIED"}]</strong> ${(x.claim||"").slice(0,140)} ${x.proof?`<a href="${x.proof}" target="_blank" style="color:#c8102e;font-weight:700;margin-left:6px;">Proof &rarr;</a>`:""}</div>`).join("");
-      }
+    const bx=document.getElementById("rn-nar-list");
+    if(bx&&nars.length){
+      bx.innerHTML=nars.slice(0,5).map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;"><strong>[${vrd(x)}]</strong> ${txt(x).slice(0,150)} ${prf(x)?`<a href="${prf(x)}" target="_blank" style="color:#c8102e;font-weight:700;margin-left:6px;">Proof &rarr;</a>`:""}</div>`).join("");
     }
   }catch(e){}
 }
