@@ -1509,3 +1509,67 @@ try:
 finally:
     _render_switch("resume")
 
+
+
+# === PHASE 2: DUAL-ENGINE + 24x7 AUTONOMOUS SURVEILLANCE ===
+_RN_RADARS = [
+    ("NARRATIVE COUNTER", "https://news.google.com/rss/search?q=(%22Indian+Army%22+OR+%22India%22+OR+%22MEA%22+OR+%22Kashmir%22)+(%22fake+claim%22+OR+%22debunked%22+OR+%22false+claim%22+OR+%22misleading%22)&hl=en-IN&gl=IN&ceid=IN:en"),
+    ("FACT-CHECK", "https://news.google.com/rss/search?q=(%22PIB+Fact+Check%22+OR+%22fact+check%22+OR+%22viral+video%22+fake)+India&hl=en-IN&gl=IN&ceid=IN:en"),
+    ("CYBER THREAT", "https://news.google.com/rss/search?q=(%22cyber+fraud%22+OR+%22fake+APK%22+OR+%22RBI+warning%22+OR+%22UPI+scam%22)+India&hl=en-IN&gl=IN&ceid=IN:en"),
+]
+_RN_SEEN = set()
+
+def _rn_independent_assess(claim, ev=""):
+    c, s, fl = (claim or "").lower(), 0, []
+    if any(k in c for k in ("forward to","free recharge","free laptop","account blocked","kyc update")): s += 45; fl.append("Scam urgency pattern")
+    if any(k in c for k in (".apk",".xyz",".top","bit.ly","tinyurl")): s += 40; fl.append("Suspicious link/APK")
+    if any(k in c for k in ("rbi banned","500 note banned","pm free","govt giving free")): s += 35; fl.append("Unverified scheme/ban claim")
+    if any(k in c for k in ("fake","debunked","false claim","misleading","hoax","edited video")): s += 35; fl.append("Manipulation/debunk cue")
+    if not str(ev or "").strip(): s += 15; fl.append("No primary govt record")
+    return min(s, 98), fl
+
+def _rn_fetch_radars(per_feed=2):
+    import urllib.request, xml.etree.ElementTree as ET
+    out = []
+    for cat, url in _RN_RADARS:
+        try:
+            root = ET.fromstring(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent":"Mozilla/5.0"}), timeout=12).read())
+            n = 0
+            for it in root.findall(".//item"):
+                t, lk = (it.findtext("title") or "").strip(), (it.findtext("link") or "").strip()
+                if not t or t in _RN_SEEN: continue
+                _RN_SEEN.add(t); out.append((cat, t, lk)); n += 1
+                if n >= per_feed: break
+        except Exception: pass
+    return out
+
+async def _rn_run_surveillance_cycle():
+    import asyncio, json, os, urllib.request
+    tok = os.getenv("BOT_TOKEN","") or os.getenv("TELEGRAM_BOT_TOKEN","")
+    seen_db = {str(r.get("claim","")).lower()[:70] for r in (_sb_req("GET","ledger",query="select=claim&limit=200") or [])}
+    for cat, title, src in await asyncio.to_thread(_rn_fetch_radars, 2):
+        tag = f"[{cat}] {title[:170]}"
+        if tag.lower()[:70] in seen_db: continue
+        try:
+            ev = await asyncio.to_thread(deep_verify, title) if "deep_verify" in globals() else ""
+            res = await asyncio.to_thread(ai_reason, title, ev) if "ai_reason" in globals() else ""
+            sc, fl = _rn_independent_assess(title, ev)
+            up = str(res or "").upper()
+            v = "CYBER THREAT" if cat=="CYBER THREAT" else ("FAKE" if "FAKE" in up else ("MISLEADING" if "MISLEADING" in up else ("VERIFIED" if "VERIFIED" in up else (f"LIKELY FAKE ({sc}% Risk)" if sc>=60 else ""))))
+            if not v: continue
+            proof = (ev[1] if isinstance(ev, tuple) and len(ev)>=2 and ev[1] else src)
+            _log_ledger("AUTO", v, tag, proof)
+            if tok:
+                msg = f"[{v}] {cat}\n\n{title[:200]}\n\n{str(res or title)[:280]}\n\nSource: {src}\nProof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/"
+                try: await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id":"@RakshaNet_India","text":msg}).encode(), headers={"Content-Type":"application/json"}, method="POST"), 10)
+                except Exception: pass
+            await asyncio.sleep(6)
+        except Exception: pass
+
+async def _rn_auto_surveillance_loop():
+    import asyncio
+    await asyncio.sleep(60)
+    while True:
+        try: await _rn_run_surveillance_cycle()
+        except Exception: pass
+        await asyncio.sleep(10800)
