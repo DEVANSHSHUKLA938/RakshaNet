@@ -1584,7 +1584,7 @@ async def _rn_run_surveillance_cycle():
                 _msg = f"<b>[{_ht.escape(v)}] {_ht.escape(cat)}</b>\n\n<b>Claim:</b> {_ht.escape(title[:220])}\n\n<b>Verdict:</b> {_ht.escape(_b[:600])}"
                 _qt = f"[{v}] {raw_h[:150]} Proof: {_p} #RakshaNetIndia"
                 _xu = "https://twitter.com/intent/tweet?text=" + urllib.parse.quote(_qt)
-                _kb = {"inline_keyboard": [[{"text": "Read Full Proof", "url": _p}, {"text": "Original Source", "url": _u}], [{"text": "Share on X (1-Click)", "url": _xu}, {"text": "RakshaNet Portal", "url": "https://devanshshukla938.github.io/RakshaNet/"}]]}
+                _kb = {"inline_keyboard": [[{"text": "Read Full Proof", "url": _p}, {"text": "Original Source", "url": _u}], [{"text": "Website Portal", "url": "https://devanshshukla938.github.io/RakshaNet/"}, {"text": "YouTube", "url": "https://www.youtube.com/@RakshaNetIndia"}, {"text": "Instagram", "url": "https://www.instagram.com/rakshanet_india/"}], [{"text": "Share on X (1-Click)", "url": _xu}, {"text": "X Profile", "url": "https://x.com/RakshaNetIndia"}]]}
                 try: await asyncio.to_thread(lambda _r: urllib.request.urlopen(_r, timeout=15), urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=json.dumps({"chat_id": "@RakshaNet_India", "text": _msg, "parse_mode": "HTML", "disable_web_page_preview": True, "reply_markup": _kb}).encode(), headers={"Content-Type": "application/json"}, method="POST"))
                 except Exception as _e: print("[AUTO-SURVEILLANCE ERR]", _e, flush=True)
             await asyncio.sleep(6)
@@ -1593,6 +1593,18 @@ async def _rn_run_surveillance_cycle():
 
 
 # === PHASE 4: X (TWITTER) v2 + INSTAGRAM GRAPH API AUTO-PUBLISHERS (Rs 0) ===
+def _rn_cross_footer(exclude=""):
+    fb = os.getenv("FB_PAGE_URL", "").strip()
+    items = [
+        ("web", "Website: https://devanshshukla938.github.io/RakshaNet/"),
+        ("tg", "Telegram Channel: https://t.me/RakshaNet_India | Bot: https://t.me/rakshanet_devansh_bot"),
+        ("yt", "YouTube: https://www.youtube.com/@RakshaNetIndia"),
+        ("ig", "Instagram: https://www.instagram.com/rakshanet_india/"),
+        ("x", "X (Twitter): https://x.com/RakshaNetIndia"),
+    ]
+    if fb: items.append(("fb", f"Facebook: {fb}"))
+    return "\n\n--- RakshaNet India Official ---\n" + "\n".join(v for k, v in items if k != exclude)
+
 def _rn_post_x(text):
     import base64, hashlib, hmac, json, os, time, urllib.parse, urllib.request, uuid
     ck, cs = os.getenv("X_API_KEY",""), os.getenv("X_API_SECRET","")
@@ -1624,7 +1636,7 @@ def _rn_post_instagram(caption, media_url="", is_reel=False):
     ig_id, ig_tok = os.getenv("IG_USER_ID",""), os.getenv("IG_ACCESS_TOKEN","")
     if not (ig_id and ig_tok and media_url): return ""
     try:
-        p = {"caption": caption[:2100], "access_token": ig_tok}
+        p = {"caption": (caption + _rn_cross_footer("ig"))[:2100], "access_token": ig_tok}
         if is_reel: p.update({"media_type": "REELS", "video_url": media_url})
         else: p.update({"image_url": media_url})
         c_req = urllib.request.Request(f"https://graph.facebook.com/v20.0/{ig_id}/media", data=urllib.parse.urlencode(p).encode(), method="POST")
@@ -1671,7 +1683,7 @@ async def _rn_auto_counter_video(verdict, title, summary, src, proof):
         if not vid_path or not os.path.exists(vid_path):
             return ""
         clean_t = f"[{verdict}] {title[:70]} #Shorts #RakshaNetIndia"
-        desc = f"Verified Fact-Check by RakshaNet India (Founder: Devansh Shukla)\n\nClaim: {title[:180]}\nFact: {summary[:300]}\n\nOriginal Source: {src}\nOfficial Proof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/\nCyber Helpline: 1930"
+        desc = f"Verified Fact-Check by RakshaNet India (Founder: Devansh Shukla)\n\nClaim: {title[:180]}\nFact: {summary[:300]}\n\nOriginal Source: {src}\nOfficial Proof: {proof}\nPortal: https://devanshshukla938.github.io/RakshaNet/\nCyber Helpline: 1930" + _rn_cross_footer("yt")
         yt_id = await asyncio.to_thread(upload_to_youtube, vid_path, clean_t, desc)
         try: os.remove(vid_path)
         except Exception: pass
