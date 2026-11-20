@@ -442,7 +442,7 @@ async function rnSyncNarratives(){
     });
     const bx=document.getElementById("rn-nar-list");
     if(bx&&nars.length){
-      bx.innerHTML=nars.slice(0,5).map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;"><strong>[${vrd(x)}]</strong> ${txt(x).slice(0,150)} ${prf(x)?`<a href="${prf(x)}" target="_blank" style="color:#c8102e;font-weight:700;margin-left:6px;">Proof &rarr;</a>`:""}</div>`).join("");
+      bx.innerHTML=nars.slice(0,5).map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;"><strong>[${vrd(x)}]</strong> ${txt(x).slice(0,150)} ${prf(x)?`<a href="${prf(x)}" target="_blank" style="color:#c8102e;font-weight:700;margin-left:6px;">Proof &rarr;</a>`:""}${window._rnSocial(ttl(x), prf(x), x.yt_url, x.ig_url)}</div>`).join("");
     }
   }catch(e){}
 }
@@ -476,7 +476,7 @@ rnSyncNarratives();
     const rows = await fetch(b + "/api/ledger?q=" + encodeURIComponent(q || "")).then(r=>r.json()).catch(()=>[]);
     const box = document.getElementById("rn-ledger") || document.getElementById("rn-ledger-list");
     if (!box || !Array.isArray(rows)) return;
-    box.innerHTML = rows.length ? rows.map(x=>`<div style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;"><strong>${x.tag||x.verdict||"CASE"}</strong> — ${(x.summary||x.claim||"").slice(0,180)} ${x.proof?`<a href="${x.proof}" target="_blank" style="color:#c8102e;font-weight:700;">[Proof]</a>`:""}</div>`).join("") : "<div style='padding:10px;color:#64748b;'>No matching Case ID or keyword found.</div>";
+    box.innerHTML = rows.length ? rows.map(x=>`<div style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;"><strong>${x.tag||x.verdict||"CASE"}</strong> — ${(x.summary||x.claim||"").slice(0,180)} ${x.proof?`<a href="${x.proof}" target="_blank" style="color:#c8102e;font-weight:700;">[Proof]</a>`:""}${window._rnSocial(x.summary||x.claim, x.proof, x.yt_url, x.ig_url)}</div>`).join("") : "<div style='padding:10px;color:#64748b;'>No matching Case ID or keyword found.</div>";
     _rnShow = 20; applyPage();
   };
   document.addEventListener("input", e => {
@@ -486,6 +486,27 @@ rnSyncNarratives();
     }
   });
 })();
+</script>
+
+<script>
+window._rnSocial = function(txt, prf, yt, ig) {
+  var q = encodeURIComponent((txt||"Verified Fact-Check").slice(0,140) + " " + (prf||"https://devanshshukla938.github.io/RakshaNet/") + " #RakshaNetIndia");
+  var xu = "https://twitter.com/intent/tweet?text=" + q;
+  var yu = (yt && /^https?:/.test(yt)) ? yt : "https://www.youtube.com/@RakshaNetIndia/shorts";
+  var iu = (ig && /^https?:/.test(ig)) ? ig : "https://www.instagram.com/rakshanetindia/";
+  var s = ' style="font-size:11.5px;font-weight:700;margin-left:8px;text-decoration:none;color:#334155;" target="_blank" rel="noopener"';
+  return '<a href="'+xu+'"'+s+'>X &#8599;</a><a href="'+yu+'"'+s+'>YouTube &#8599;</a><a href="'+iu+'"'+s+'>Instagram &#8599;</a>';
+};
+setTimeout(function(){
+  document.querySelectorAll('#rn-ledger a, table a').forEach(function(a){
+    if (/proof|source|verify/i.test(a.textContent||"") && !a.dataset.rnSoc) {
+      a.dataset.rnSoc = "1";
+      var row = a.closest('tr, div');
+      var txt = row ? (row.innerText||"").slice(0,130) : "RakshaNet Fact-Check";
+      a.insertAdjacentHTML('afterend', window._rnSocial(txt, a.href));
+    }
+  });
+}, 1400);
 </script>
 
 <!-- RN_WIDGET_END -->

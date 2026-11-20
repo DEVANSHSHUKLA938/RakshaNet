@@ -1053,7 +1053,7 @@ def extract_video_claim(vid_path, speech_text=""):
     except Exception as e:
         diag.append(f"err={e}")
 
-    return "[NO FACTUAL CLAIM] (" + "; ".join(diag) + ")"
+    return "[NO FACTUAL CLAIM]"
 
 def build_pro_short(a, b, c=None, out_vid="/tmp/raksha_short.mp4"):
     if c is None:
