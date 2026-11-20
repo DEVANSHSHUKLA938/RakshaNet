@@ -93,11 +93,12 @@ print("[CloudSync] Cross-Platform Radar + IFCN updated cleanly!")
 # Auto-inject RakshaNet Live Verifier Widget
 try:
     import os as _ow, re as _rw
-    if _ow.path.exists("docs/rn_widget.html") and _ow.path.exists("docs/index.html"):
-        _w = open("docs/rn_widget.html", "r", encoding="utf-8").read()
-        _h = open("docs/index.html", "r", encoding="utf-8").read()
-        if "rn-live-desk" not in _h:
-            _h = _rw.sub(r"(<body[^>]*>)", lambda m: m.group(1) + "\n" + _w, _h, count=1)
-            open("docs/index.html", "w", encoding="utf-8").write(_h)
+    import os as _os, re as _re
+    if _os.path.exists("docs/rn_widget.html"):
+        _rw = open("docs/rn_widget.html", encoding="utf-8").read()
+        html = _re.sub(r"\n?<!-- RN_WIDGET_START -->.*?<!-- RN_WIDGET_END -->\n?", "", html, flags=_re.S)
+        _rm = _re.search(r'<div[^>]*>[^<]*Home\s*(?:›|&rsaquo;|&#8250;|&gt;|>)[^<]*India', html, _re.I)
+        _rb = "\n<!-- RN_WIDGET_START -->\n" + _rw + "\n<!-- RN_WIDGET_END -->\n"
+        html = (html[:_rm.start()] + _rb + html[_rm.start():]) if _rm else html.replace("<body>", "<body>" + _rb, 1)
 except Exception:
     pass
