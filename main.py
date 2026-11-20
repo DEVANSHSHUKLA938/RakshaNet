@@ -785,13 +785,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.execute("INSERT OR REPLACE INTO narratives (claim, source_type, counter_fact, proof_url) VALUES (?, ?, ?, ?)", (txt, "TELEGRAM TEXT", fact, purl))
             if "[UNCONFIRMED]" in fact:
                 conn.execute("INSERT OR IGNORE INTO watchlist (claim, source_url, chat_id) VALUES (?, ?, ?)", (txt, purl, update.effective_chat.id))
-            if d.get("appeals"):
-                conn.execute("CREATE TABLE IF NOT EXISTS appeals (ts INT, msg TEXT)")
-                for _ts, _mg in d.get("appeals", []):
-                    conn.execute("INSERT OR IGNORE INTO appeals (ts, msg) VALUES (?, ?)", (_ts, _mg))
-            if d.get("ledger") and not os.path.exists("data/ledger.json"):
-                os.makedirs("data", exist_ok=True)
-                json.dump(d.get("ledger"), open("data/ledger.json", "w"), indent=2)
             conn.commit()
             conn.close()
             _log_ledger("RN", fact.split("]")[0]+"]" if "]" in fact else "CHECK", fact, purl)
@@ -1585,7 +1578,7 @@ def _rn_post_x(text):
         if tid: print(f"[PHASE 4] X Post LIVE: https://x.com/i/status/{tid}", flush=True)
         return f"https://x.com/i/status/{tid}" if tid else ""
     except Exception as _e:
-        print("[PHASE 4 X ERR]", _e, flush=True)
+        if "402" not in str(_e): print("[PHASE 4 X ERR]", _e, flush=True)
         return ""
 
 def _rn_post_instagram(caption, media_url="", is_reel=False):
